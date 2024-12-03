@@ -388,7 +388,47 @@ class hum(object):
         else:
             epsg_code = '327' + utm_band
         return epsg_code
-    
+
+    def _decodeOnix(self):
+        '''
+        Decodes .DAT file from Onix Humminbird models.  Onix has a significantly
+        different .DAT file structure compared to other Humminbird models,
+        requiring a specific function to decode the file.
+
+        -------
+        Returns
+        -------
+        A dictionary stored in self.humDat containing data from .DAT file.
+        '''
+        fid2 = open(self.humFile, 'rb') # Open file
+
+        dumpstr = fid2.read() # Store file contents
+        fid2.close() # Close the file
+
+        if sys.version.startswith('3'):
+          dumpstr = ''.join(map(chr, dumpstr))
+
+        humdat = {}
+        hd = dumpstr.split('<')[0]
+        tmp = ''.join(dumpstr.split('<')[1:])
+        humdat['NumberOfPings'] = int(tmp.split('NumberOfPings=')[1].split('>')[0])
+        humdat['TotalTimeMs'] = int(tmp.split('TotalTimeMs=')[1].split('>')[0])
+        humdat['linesize'] = int(tmp.split('PingSizeBytes=')[1].split('>')[0])
+        humdat['FirstPingPeriodMs'] = int(tmp.split('FirstPingPeriodMs=')[1].split('>')[0])
+        humdat['BeamMask'] = int(tmp.split('BeamMask=')[1].split('>')[0])
+        humdat['Chirp1StartFrequency'] = int(tmp.split('Chirp1StartFrequency=')[1].split('>')[0])
+        humdat['Chirp1EndFrequency'] = int(tmp.split('Chirp1EndFrequency=')[1].split('>')[0])
+        humdat['Chirp2StartFrequency'] = int(tmp.split('Chirp2StartFrequency=')[1].split('>')[0])
+        humdat['Chirp2EndFrequency'] = int(tmp.split('Chirp2EndFrequency=')[1].split('>')[0])
+        humdat['Chirp3StartFrequency'] = int(tmp.split('Chirp3StartFrequency=')[1].split('>')[0])
+        humdat['Chirp3EndFrequency'] = int(tmp.split('Chirp3EndFrequency=')[1].split('>')[0])
+        humdat['SourceDeviceModelId2D'] = int(tmp.split('SourceDeviceModelId2D=')[1].split('>')[0])
+        humdat['SourceDeviceModelIdSI'] = int(tmp.split('SourceDeviceModelIdSI=')[1].split('>')[0])
+        humdat['SourceDeviceModelIdDI'] = int(tmp.split('SourceDeviceModelIdDI=')[1].split('>')[0])
+        humdat['water_type'] = 'fresh' #'shallow salt' #'deep salt'
+        self.humDat = humdat # Store data in class attribute for later use
+        return
+
     def _getBeamName(self, beam: str):
 
         '''
@@ -634,7 +674,138 @@ class hum(object):
         self.son_struct = headStruct
 
         return
-    
+
+    # def _decodeHeadStruct(self,
+    #                       exportUnknown = False):
+    #     '''
+    #     This function attempts to automatically decode the sonar return header
+    #     structure if self.headValid == FALSE as determined by self._checkHeadStruct().
+    #     This function will iterate through each byte at the beginning of the
+    #     sonar file, decode the byte, determine if it matches any known or unknown
+    #     spacer value (ping attribute 'name') and if it does, store the
+    #     byte offset.
+
+    #     ----------
+    #     Parameters
+    #     ----------
+    #     exportUnknown : bool
+    #         DESCRIPTION - Flag indicating if unknown attributes in ping
+    #                       should be exported or not.  If a user of PING Mapper
+    #                       determines what an unkown attribute actually is, please
+    #                       report using a github issue.
+
+    #     ----------------------------
+    #     Required Pre-processing step
+    #     ----------------------------
+    #     self._cntHead()
+
+    #     -------
+    #     Returns
+    #     -------
+    #     A dictionary with .SON file structure stored in self.headStruct with
+    #     the following format:
+
+    #     self.headStruct = {byteVal : [byteIndex, offset, dataLen, name],
+    #                        ...} where:
+    #         byteVal == Spacer value (integer) preceding attribute values (i.e. depth);
+    #         byteIndex == Index indicating position of byteVal;
+    #         offset == Byte offset for the actual data;
+    #         dataLen == number of bytes for data (i.e. utm_e is 4 bytes long);
+    #         name = name of attribute.
+
+    #     --------------------
+    #     Next Processing Step
+    #     --------------------
+    #     self._checkHeadStruct()
+    #     '''
+    #     headBytes = self.headBytes # Number of header bytes for a ping
+    #     headStruct = {}
+    #     toCheck = {
+    #         128:[-1, 1, 4, 'record_num'], #Record Number (Unique for each ping)
+    #         129:[-1, 1, 4, 'time_s'], #Time Elapsed milliseconds
+    #         130:[-1, 1, 4, 'utm_e'], #UTM X
+    #         131:[-1, 1, 4, 'utm_n'], #UTM Y
+    #         132.1:[-1, 1, 2, 'gps1'], #GPS quality flag (?)
+    #         132.2:[-1, 3, 2, 'instr_heading'], #Heading
+    #         133.1:[-1, 1, 2, 'gps2'], #GPS quality flag (?)
+    #         133.2:[-1, 3, 2, 'speed_ms'], #Speed in meters/second
+    #         134:[-1, 1, 4, 'unknown_134'], #Unknown
+    #         135:[-1, 1, 4, 'inst_dep_m'], #Depth in centimeters, then converted to meters
+    #         136:[-1, 1, 4, 'unknown_136'], #Unknown
+    #         137:[-1, 1, 4, 'unknown_137'], #Unknown
+    #         138:[-1, 1, 4, 'unknown_138'], #Unknown
+    #         139:[-1, 1, 4, 'unknown_139'], #Unkown
+    #         140:[-1, 1, 4, 'unknown_140'], #Unknown
+    #         141:[-1, 1, 4, 'unknown_141'], #Unknown
+    #         142:[-1, 1, 4, 'unknown_142'], #Unknown
+    #         143:[-1, 1, 4, 'unknown_143'], #Unknown
+    #         80:[-1, 1, 1, 'beam'], #Beam number: 0 (50 or 83 kHz), 1 (200 kHz), 2 (SI Poort), 3 (SI Starboard)
+    #         81:[-1, 1, 1, 'volt_scale'], #Volt Scale (?)
+    #         146:[-1, 1, 4, 'f'], #Frequency of beam in hertz
+    #         83:[-1, 1, 1, "unknown_83"], #Unknown (number of satellites???)
+    #         84:[-1, 1, 1, "unknown_84"], #Unknown
+    #         149:[-1, 1, 4, "unknown_149"], #Unknown (magnetic deviation???)
+    #         86:[-1, 1, 1, 'e_err_m'], #Easting variance (+-X error)
+    #         87:[-1, 1, 1, 'n_err_m'], #Northing variance (+-Y error)
+    #         152:[-1, 1, 4, 'unknown_152'], #Unknown
+    #         153:[-1, 1, 4, 'unknown_153'], #Unknown
+    #         154:[-1, 1, 4, 'unknown_154'], #Unknown
+    #         155:[-1, 1, 4, 'unknown_155'], #Unknown
+    #         156:[-1, 1, 4, 'unknown_156'], #Unknown
+    #         157:[-1, 1, 4, 'unknown_157'], #Unknown
+    #         158:[-1, 1, 4, 'unknown_158'], #Unknown
+    #         159:[-1, 1, 4, 'unknown_159'], #Unknown
+    #         160:[-1, 1, 4, 'ping_cnt'] #Number of ping values (in bytes)
+    #         }
+
+    #     file = open(self.sonFile, 'rb') # Open the file
+    #     lastPos = 0 # Track last position in file
+    #     head = self._fread(file, 4,'B') # Get first 4 bytes of file
+
+    #     # If first four bytes match known Humminbird ping header
+    #     if head[0] == 192 and head[1] == 222 and head[2] == 171 and head[3] == 33:
+    #         while lastPos < headBytes - 1:
+    #             lastPos = file.tell() # Get current position in file
+    #             byte = self._fread(file, 1, 'B')[0] # Decode the spacer byte
+    #             # If spacer byte not equal to 132 or 133
+    #             if byte != 132 and byte != 133:
+    #                 meta = toCheck[byte] # Get associated metadata for known byteVal
+    #                 meta[0] = lastPos # Store the current position
+    #                 headStruct[byte] = meta # Store what was found in headStruct
+    #                 file.seek(meta[0]+meta[1]+meta[2]) # Move to next position in file
+    #             # Spacer 132/133 store two sets of information per spacer, so
+    #             ## we need to handle differently.
+    #             else:
+    #                 # Part 1 (first 2 bytes of 4 byte sequence following spacer)
+    #                 byte = byte + 0.1 # Append .1 to byteVal (i.e. 132.1 or 133.1)
+    #                 meta0_1 = toCheck[byte] # Get associated metadata for known byteVal
+    #                 meta0_1[0] = lastPos # Store the current position
+    #                 headStruct[byte] = meta0_1 # Store what was found in headStruct
+
+    #                 # Part 2 (second 2 bytes of 4 byte sequence following spacer)
+    #                 byte = byte + 0.1 # Append .1 to byteVal (i.e. 132.2 or 133.3)
+    #                 meta0_2 = toCheck[byte] # Get associated metadata for known byteVal
+    #                 meta0_2[0] = lastPos # Store the current position
+    #                 headStruct[byte] = meta0_2 # Store what was found in headStruct
+    #                 file.seek(meta0_2[0]+meta0_2[1]+meta0_2[2]) # Move to next position in file
+    #             lastPos = file.tell() # Update with current position
+
+    #     file.close() # Close the file
+
+    #     # We will ignore unknown attributes if exportUnknown==False, so we will
+    #     ## remove those from headStruct.  This will make metadata csv file smaller.
+    #     if not exportUnknown:
+    #         toDelete = [] # List to store uknown keys
+    #         for key, value in headStruct.items():# Iterate each element in headStruct
+    #             attributeName = value[3] # Get attribute name from headStruct element
+    #             if 'unknown' in attributeName: # If attribute name contains 'unknown'
+    #                 toDelete.append(key) # Add key name to toDelete
+    #         for key in toDelete: # Iterate each key in toDelete
+    #             del headStruct[key] # Remove key from headStruct
+
+    #     self.headStruct = headStruct # Store data in class attribute for later use
+    #     return
+
     def _parsePingHeader(self, in_file: str, out_file: str):
         '''
         '''
@@ -704,6 +875,11 @@ class hum(object):
         # Drop head_start
         header_dat_all.drop('head_start', axis=1, inplace=True)
         header_dat_all.drop('head_end', axis=1, inplace=True)
+
+        # Update last chunk if too small (for rectification)
+        lastChunk = header_dat_all[header_dat_all['chunk_id'] == chunk]
+        if len(lastChunk) <= self.nchunk/2:
+            header_dat_all.loc[header_dat_all['chunk_id'] == chunk, 'chunk_id'] = chunk-1
 
 
         # Save to csv
