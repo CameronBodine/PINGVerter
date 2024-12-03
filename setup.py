@@ -1,17 +1,14 @@
 from setuptools import setup, find_packages
 from pathlib import Path
-import versioneer
 
 DESCRIPTION = 'A Python-based converter for sonar logs used in PINGMapper'
 LONG_DESCRIPTION = Path('README.md').read_text()
 
-with open("requirements.txt", "r") as fh:
-    requirements = [line.strip() for line in fh]
+exec(open('pingverter/version.py').read())
 
 setup(
     name="pingverter",
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version=__version__,
     author="Cameron Bodine",
     author_email="bodine.cs@gmail.email",
     description=DESCRIPTION,
@@ -24,5 +21,5 @@ setup(
         "Operating System :: OS Independent",
         ],
     python_requires=">=3.6",
-    install_requires=requirements,
+    install_requires="",
 )
