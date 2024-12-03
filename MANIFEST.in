@@ -1,0 +1,4 @@
+include versioneer.py
+include pingverter/_version.py
+include LICENSE
+include requirements.txt

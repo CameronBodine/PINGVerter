@@ -5,6 +5,9 @@ import versioneer
 DESCRIPTION = 'A Python-based converter for sonar logs used in PINGMapper'
 LONG_DESCRIPTION = Path('README.md').read_text()
 
+with open("requirements.txt", "r") as fh:
+    requirements = [line.strip() for line in fh]
+
 setup(
     name="pingverter",
     version=versioneer.get_version(),
@@ -21,5 +24,5 @@ setup(
         "Operating System :: OS Independent",
         ],
     python_requires=">=3.6",
-    install_requires=["versioneer"],
+    install_requires=requirements,
 )
