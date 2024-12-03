@@ -10,7 +10,7 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     author="Cameron Bodine",
-    author_email="bodine.cs@gmail.email"
+    author_email="bodine.cs@gmail.email",
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
@@ -19,7 +19,7 @@ setup(
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-        ]
+        ],
     python_requires=">=3.6",
-    install_requires=requirements,
+    install_requires=["versioneer"],
 )
