@@ -151,9 +151,74 @@ def hum2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
 # Lowrance to PINGMapper
 # =========================================================
 
-def low2pingmapper(low_file: str, out_dir: str):
+def low2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, exportUnknown: bool=False):
+
+    # Make sure input exists
+    assert os.path.isfile(input), "{} does not exist.".format(input)
+
+    # Create the class
+    lowrance = low(inFile=input, nchunk=nchunk, exportUnknown=exportUnknown)
+
+    # Store temperature
+    lowrance.tempC = float(tempC)/10
+
+    ######################
+    # Decode Lowrance File
+    ######################
+
+    # Create 'meta' directory if it doesn't exist
+    metaDir = os.path.join(out_dir, 'meta')
+    try:
+        os.mkdir(metaDir)
+    except:
+        pass
+    lowrance.metaDir = metaDir # Store metadata directory
+
+    # Get Lowrance file length
+    lowrance._getFileLen()
+
+    # Parse file header ***Probably not needed***
+    lowrance._parseFileHeader()
+
+    # Parse ping headers (attributes) and do conversions
+    lowrance._parsePingHeader()
+
+    # Remove unknown beams
+    lowrance._removeUnknownBeams()
+
+    # Drop Beam 0 (83kHz) or 1 (200kHz) if necessary
+    lowrance._removeDownBeams()
+
+    # Split sidescan, if necessary
+    beams = lowrance.header_dat['beam'].unique()
+    if 5 in beams:
+        lowrance._splitLowSS()
+        flip_port = True
+    else:
+        flip_port = False
+
+    # Recalculate record number
+    lowrance._recalcRecordNum()
+
+    # Drop unknown
+    if not exportUnknown:
+        cols = lowrance.header_dat.columns
+        cols = [c for c in cols if 'unknown' in c]
+        
+        lowrance.header_dat.drop(columns=cols, inplace=True)
+
+    # Save ping metadata to csv based on beam
+    lowrance._splitBeamsToCSV()
+
+    # Store headBytes
+    lowrance.headBytes = lowrance.frame_header_size
+
+    # Not Humminbird Onix
+    lowrance.isOnix = 0
+
+    print(lowrance)
     
-    return
+    return lowrance
 
 
 # =========================================================
