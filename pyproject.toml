@@ -4,8 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pingverter"
-dynamic = ["version"]
-readme = {file = "README.md", content_type = "text/markdown"}
+dynamic = ["version", "readme"]
 description = "A Python-based converter for sonar logs - PINGMapper dependency"
 license = { file = "LICENSE" }
 authors = [{ name = "Cameron Bodine", email = "bodine.cs@gmail.com" }]
@@ -50,4 +49,5 @@ Repository = "https://github.com/CameronBodine/PINGVerter"
 Issues = "https://github.com/CameronBodine/PINGVerter/issues"
 
 [tool.setuptools.dynamic]
-version = {attr = "pingverter.__version"}
+version = {attr = "pingverter.__version__"}
+readme = {file = ["README.md"], content_type = "text/markdown"}
