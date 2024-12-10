@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 from pathlib import Path
 
-DESCRIPTION = 'A Python-based converter for sonar logs used in PINGMapper'
+DESCRIPTION = 'A Python-based converter for sonar logs used by PINGMapper'
 LONG_DESCRIPTION = Path('README.md').read_text()
 
 exec(open('pingverter/version.py').read())
@@ -40,5 +40,5 @@ setup(
         "oceanography",
         "limnology",],
     python_requires=">=3.6",
-    install_requires=["numpy", "pandas"],
+    install_requires=["numpy", "pandas", "pyproj", "joblib"],
 )

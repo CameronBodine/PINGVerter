@@ -1,7 +1,7 @@
 # PINGVerter
 A Python-based convertor for sonar logs collected with consumer-grade fishfinders.
 
-`PINGVerter` is designed to pre-process sonar logs for [PINGMapper](https://cameronbodine.github.io/PINGMapper/) post-processing. It is not intended
+`PINGVerter` is designed to pre-process sonar logs for [PINGMapper](https://cameronbodine.github.io/PINGMapper/) post-processing. *It is not intended to function as a stand-alone package.*
 
 ## Compatibility
 
@@ -54,7 +54,7 @@ Outputs from the above examples will be exported to `C:\Path\To\Outputs\MyProjec
 - [Dr. Arthur Trembanis](https://www.udel.edu/academics/colleges/ceoe/departments/smsp/faculty/arthur-trembanis/) (Post-Doc Advisor) & [Dr. Daniel Buscombe](https://github.com/dbuscombe-usgs) (PhD Advisor)
 - [Coastal Sediments, Hydrodynamics and Engineering Lab (CSHEL)](https://sites.udel.edu/ceoe-art/), [College of Earth, Ocean, & Environment (CEOE)](https://www.udel.edu/ceoe/), [University of Delaware](https://www.udel.edu/)
 - [PINGMapper](https://cameronbodine.github.io/PINGMapper/) - Bodine, C. S., Buscombe, D., Best, R. J., Redner, J. A., & Kaeser, A. J. (2022). PING-Mapper: Open-source software for automated benthic imaging and mapping using recreation-grade sonar. Earth and Space Science, 9, e2022EA002469. https://doi.org/10.1029/2022EA002469
-- [SL3Reader](https://github.com/halmaia/SL3Reader) - Halmai, Akos; Gradwohl–Valkay, Alexandra; Czigany, Szabolcs; Ficsor, Johanna; Liptay, ZoltAn Arpad; Kiss, Kinga; Loczy, Denes and Pirkhoffer, Ervin. 2020. "Applicability of a Recreational-Grade Interferometric Sonar for the Bathymetric Survey and Monitoring of the Drava River" ISPRS International Journal of Geo-Information 9, no. 3: 149. https://doi.org/10.3390/ijgi9030149
+- [SL3Reader](https://github.com/halmaia/SL3Reader) - Halmai, Akos; Gradwohl Valkay, Alexandra; Czigany, Szabolcs; Ficsor, Johanna; Liptay, ZoltAn Arpad; Kiss, Kinga; Loczy, Denes and Pirkhoffer, Ervin. 2020. "Applicability of a Recreational-Grade Interferometric Sonar for the Bathymetric Survey and Monitoring of the Drava River" ISPRS International Journal of Geo-Information 9, no. 3: 149. https://doi.org/10.3390/ijgi9030149
 - [sonarlight](https://github.com/KennethTM/sonarlight) - Kenneth Thoro Martinsen
 - [Navico (Lowrance, Simrad, B&G) Sonar Log File Format](https://www.memotech.franken.de/FileFormats/Navico_SLG_Format.pdf) - Herbert Oppmann
 - [Vincent Capone](https://blacklaserlearning.com/) - Black Laser Learning

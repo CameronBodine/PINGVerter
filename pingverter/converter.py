@@ -44,6 +44,9 @@ def hum2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
         humminbird._decodeOnix()
 
     # Create 'meta' directory if it doesn't exist
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
     metaDir = os.path.join(out_dir, 'meta')
     try:
         os.mkdir(metaDir)
@@ -166,6 +169,9 @@ def low2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
     # Decode Lowrance File
     ######################
 
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
     # Create 'meta' directory if it doesn't exist
     metaDir = os.path.join(out_dir, 'meta')
     try:
@@ -215,8 +221,6 @@ def low2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
 
     # Not Humminbird Onix
     lowrance.isOnix = 0
-
-    print(lowrance)
     
     return lowrance
 
