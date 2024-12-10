@@ -20,7 +20,7 @@ jobs:
         python-version: '3.x'
     - name: Install dependencies
       run: |
-        pip install build
+        python -m pip install -U pip build
     - name: Build package
       run: python -m build
     - name: Publish package
