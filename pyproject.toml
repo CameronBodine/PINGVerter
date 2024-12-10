@@ -50,4 +50,4 @@ Issues = "https://github.com/CameronBodine/PINGVerter/issues"
 
 [tool.setuptools.dynamic]
 version = {attr = "pingverter.__version__"}
-readme = {file = ["README.md"], content_type = "text/markdown"}
+readme = {file = ["README.md"]}
