@@ -1,6 +1,4 @@
-![PyPI - Version](https://img.shields.io/pypi/v/pingverter?style=flat-square&label=Latest%20Version%20(PyPi))
-
-![PyPI - Version](https://img.shields.io/pypi/v/pingverter?style=flat-square&label=Latest%20Version%20(PyPi)&link=https%3A%2F%2Fpypi.org%2Fproject%2Fpingverter%2F)
+[![PyPI - Version](https://img.shields.io/pypi/v/pingverter?style=flat-square&label=Latest%20Version%20(PyPi))](https://pypi.org/project/pingverter/)
 
 
 A Python-based convertor for sonar logs collected with consumer-grade fishfinders.
