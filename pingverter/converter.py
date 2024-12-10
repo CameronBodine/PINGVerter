@@ -1,7 +1,7 @@
 
 import os, sys
 from pingverter import hum, low
-import time, datetime
+import time
 import pandas as pd
 from glob import glob
 

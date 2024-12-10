@@ -11,7 +11,7 @@ A Python-based convertor for sonar logs collected with consumer-grade fishfinder
 ## Installation
 
 
-```
+```bash
 pip install pingverter
 ```
 
@@ -20,7 +20,7 @@ pip install pingverter
 `PINGVerter` *can* be used as a stand-alone engine for decoding sonar logs and exporting ping attributes to CSV. While this functionality is described here, please use [PINGMapper](https://cameronbodine.github.io/PINGMapper/) for all sonar log processing.
 
 ### Humminbird
-```
+```python
 # Import
 from pingverter import hum2pingmapper
 
@@ -32,7 +32,7 @@ sonar_object = hum2pingmapper(inFile, projDir)
 ```
 
 ### Lowrance
-```
+```python
 # Import
 from pingverter import low2pingmapper
 
@@ -57,6 +57,7 @@ Outputs from the above examples will be exported to `C:\Path\To\Outputs\MyProjec
 - [SL3Reader](https://github.com/halmaia/SL3Reader) - Halmai, Ákos; Gradwohl–Valkay, Alexandra; Czigány, Szabolcs; Ficsor, Johanna; Liptay, Zoltán Árpád; Kiss, Kinga; Lóczy, Dénes and Pirkhoffer, Ervin. 2020. "Applicability of a Recreational-Grade Interferometric Sonar for the Bathymetric Survey and Monitoring of the Drava River" ISPRS International Journal of Geo-Information 9, no. 3: 149. https://doi.org/10.3390/ijgi9030149
 - [sonarlight](https://github.com/KennethTM/sonarlight) - Kenneth Thorø Martinsen
 - [Navico (Lowrance, Simrad, B&G) Sonar Log File Format](https://www.memotech.franken.de/FileFormats/Navico_SLG_Format.pdf) - Herbert Oppmann
+- [Vincent Capone](https://blacklaserlearning.com/) - Black Laser Learning
 
 
 ## Future Development, Collaborations, & Partnerships

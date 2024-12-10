@@ -1,8 +1,7 @@
 
-import os, sys
+import os
 import numpy as np
 import pandas as pd
-from array import array as arr
 import pyproj
 
 '''
