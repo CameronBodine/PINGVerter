@@ -50,4 +50,4 @@ Repository = "https://github.com/CameronBodine/PINGVerter"
 Issues = "https://github.com/CameronBodine/PINGVerter/issues"
 
 [tool.setuptools.dynamic]
-version = {"pingverter.__version"}
+version = {attr = "pingverter.__version"}
