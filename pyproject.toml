@@ -20,27 +20,13 @@ classifiers = [
     "Topic :: Scientific/Engineering :: GIS",
     "Topic :: Scientific/Engineering :: Hydrology",
 ]
-keywords = [
-    "pingmapper",
-    "sonar",
-    "ecology",
-    "remotesensing",
-    "sidescan",
-    "sidescan-sonar",
-    "aquatic",
-    "humminbird",
-    "lowrance",
-    "gis",
-    "oceanography",
-    "limnology",
-]
 dependencies = [
     "numpy",
     "pandas",
     "pyproj",
     "joblib",
-
 ]
+keywords = ["test"]
 requires-python = ">=3.8"
 
 [project.optional-dependencies]
