@@ -19,7 +19,6 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Oceanography",
     "Topic :: Scientific/Engineering :: GIS",
     "Topic :: Scientific/Engineering :: Hydrology",
-    ]
 ]
 keywords = [
     'pingmapper',
