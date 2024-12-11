@@ -1,3 +1,45 @@
+'''
+Dependency of PINGMapper: https://github.com/CameronBodine/PINGMapper
+
+Repository: https://github.com/CameronBodine/PINGVerter
+PyPi: https://pypi.org/project/pingverter/ 
+
+Developed by Cameron S. Bodine
+
+###############
+Acknowledgments
+###############
+
+None of this work would have been possible without the following repositories:
+
+PyHum: https://github.com/dbuscombe-usgs/PyHum
+SL3Reader: https://github.com/halmaia/SL3Reader
+sonarlight: https://github.com/KennethTM/sonarlight
+
+
+MIT License
+
+Copyright (c) 2024 Cameron S. Bodine
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+'''
+
 
 import os, sys, struct
 import numpy as np
@@ -474,30 +516,31 @@ class hum(object):
         self._getHeadStruct()
         '''
         
-        file = open(sonFile, 'rb') # Open sonar file
-        i = 0 # Counter to track sonar header length
-        foundEnd = False # Flag to track if end of sonar header found
-        while foundEnd is False and i < 200:
-            lastPos = file.tell() # Get current position in file (byte offset from beginning)
-            byte = self._fread_dat(file, 1, 'B') # Decode byte value
+        # file = open(sonFile, 'rb') # Open sonar file
+        with open(sonFile, 'rb') as file:
+            i = 0 # Counter to track sonar header length
+            foundEnd = False # Flag to track if end of sonar header found
+            while foundEnd is False and i < 200:
+                lastPos = file.tell() # Get current position in file (byte offset from beginning)
+                byte = self._fread_dat(file, 1, 'B') # Decode byte value
 
-            # Check if we found the end of the ping.
-            ## A value of 33 **may** indicate end of ping.
-            if byte[0] == self.head_end_val and lastPos > 3:
-                # Double check we found the actual end by moving backward -6 bytes
-                ## to see if value is 160 (spacer preceding number of ping records)
-                file.seek(-6, 1)
-                byte = self._fread_dat(file, 1, 'B')
-                if byte[0] == 160:
-                    foundEnd = True
+                # Check if we found the end of the ping.
+                ## A value of 33 **may** indicate end of ping.
+                if byte[0] == self.head_end_val and lastPos > 3:
+                    # Double check we found the actual end by moving backward -6 bytes
+                    ## to see if value is 160 (spacer preceding number of ping records)
+                    file.seek(-6, 1)
+                    byte = self._fread_dat(file, 1, 'B')
+                    if byte[0] == 160:
+                        foundEnd = True
+                    else:
+                        # Didn't find the end of header
+                        # Move cursor back to lastPos+1
+                        file.seek(lastPos+1)
                 else:
-                    # Didn't find the end of header
-                    # Move cursor back to lastPos+1
-                    file.seek(lastPos+1)
-            else:
-                # Haven't found the end
-                pass
-            i+=1
+                    # Haven't found the end
+                    pass
+                i+=1
 
         # i reaches 200, then we have exceeded known Humminbird header length.
         ## Set i to 0, then the next sonFile will be checked.
@@ -505,6 +548,7 @@ class hum(object):
             i = 0
 
         file.close()
+        print(i)
         self.headBytes = i # Store data in class attribute for later use
         return i
     
@@ -675,8 +719,7 @@ class hum(object):
 
         return
 
-    def _decodeHeadStruct(self,
-                          exportUnknown = False):
+    def _decodeHeadStruct(self, sonFile: str):
         '''
         This function attempts to automatically decode the sonar return header
         structure if self.headValid == FALSE as determined by self._checkHeadStruct().
@@ -718,93 +761,85 @@ class hum(object):
         --------------------
         self._checkHeadStruct()
         '''
-        headBytes = self.headBytes # Number of header bytes for a ping
-        headStruct = {}
+
+        header_len = 0
+        headBytes = 200
+        headStruct = []
         toCheck = {
-            128:[-1, 1, 4, 'record_num'], #Record Number (Unique for each ping)
-            129:[-1, 1, 4, 'time_s'], #Time Elapsed milliseconds
-            130:[-1, 1, 4, 'utm_e'], #UTM X
-            131:[-1, 1, 4, 'utm_n'], #UTM Y
-            132.1:[-1, 1, 2, 'gps1'], #GPS quality flag (?)
-            132.2:[-1, 3, 2, 'instr_heading'], #Heading
-            133.1:[-1, 1, 2, 'gps2'], #GPS quality flag (?)
-            133.2:[-1, 3, 2, 'speed_ms'], #Speed in meters/second
-            134:[-1, 1, 4, 'unknown_134'], #Unknown
-            135:[-1, 1, 4, 'inst_dep_m'], #Depth in centimeters, then converted to meters
-            136:[-1, 1, 4, 'unknown_136'], #Unknown
-            137:[-1, 1, 4, 'unknown_137'], #Unknown
-            138:[-1, 1, 4, 'unknown_138'], #Unknown
-            139:[-1, 1, 4, 'unknown_139'], #Unkown
-            140:[-1, 1, 4, 'unknown_140'], #Unknown
-            141:[-1, 1, 4, 'unknown_141'], #Unknown
-            142:[-1, 1, 4, 'unknown_142'], #Unknown
-            143:[-1, 1, 4, 'unknown_143'], #Unknown
-            80:[-1, 1, 1, 'beam'], #Beam number: 0 (50 or 83 kHz), 1 (200 kHz), 2 (SI Poort), 3 (SI Starboard)
-            81:[-1, 1, 1, 'volt_scale'], #Volt Scale (?)
-            146:[-1, 1, 4, 'f'], #Frequency of beam in hertz
-            83:[-1, 1, 1, "unknown_83"], #Unknown (number of satellites???)
-            84:[-1, 1, 1, "unknown_84"], #Unknown
-            149:[-1, 1, 4, "unknown_149"], #Unknown (magnetic deviation???)
-            86:[-1, 1, 1, 'e_err_m'], #Easting variance (+-X error)
-            87:[-1, 1, 1, 'n_err_m'], #Northing variance (+-Y error)
-            152:[-1, 1, 4, 'unknown_152'], #Unknown
-            153:[-1, 1, 4, 'unknown_153'], #Unknown
-            154:[-1, 1, 4, 'unknown_154'], #Unknown
-            155:[-1, 1, 4, 'unknown_155'], #Unknown
-            156:[-1, 1, 4, 'unknown_156'], #Unknown
-            157:[-1, 1, 4, 'unknown_157'], #Unknown
-            158:[-1, 1, 4, 'unknown_158'], #Unknown
-            159:[-1, 1, 4, 'unknown_159'], #Unknown
-            160:[-1, 1, 4, 'ping_cnt'] #Number of ping values (in bytes)
+            128:[('SP128', '>u1'), ('record_num', '>u4')], #Record Number (Unique for each ping)
+            129:[('SP129', '>u1'), ('time_s', '>u4')], #Time Elapsed milliseconds
+            130:[('SP130', '>u1'), ('utm_e', '>i4')], #UTM X
+            131:[('SP131', '>u1'), ('utm_n', '>i4'),], #UTM Y
+            132:[('SP132', '>u1'), ('gps1', '>u2'), ('instr_heading', '>u2')], #GPS quality flag (?) and heading
+            133:[('SP133', '>u1'), ('gps2', '>u2'), ('speed_ms', '>u2'),], #GPS quality flag (?) & speed in meters/second
+            134:[('SP134', '>u1'), ('unknown_134', '>u4'),], #Unknown
+            135:[('SP135', '>u1'), ('inst_dep_m', '>u4'),], #Depth in centimeters, then converted to meters
+            136:[('SP136', '>u1'), ('unknown_136', '>u4'),], #Unknown
+            137:[('SP137', '>u1'), ('unknown_137', '>u4')], #Unknown
+            138:[('SP138', '>u1'), ('unknown_138', '>u4'),], #Unknown
+            139:[('SP139', '>u1'), ('unknown_139', '>u4'),], #Unkown
+            140:[('SP140', '>u1'), ('unknown_140', '>u4'),], #Unknown
+            141:[('SP141', '>u1'), ('unknown_141', '>u4'),], #Unknown
+            142:[('SP142', '>u1'), ('unknown_142', '>u4'),], #Unknown
+            143:[('SP143', '>u1'), ('unknown_143', '>u4'),], #Unknown
+            80:[('SP80', '>u1'), ('beam', '>u1'),], #Beam number: 0 (50 or 83 kHz), 1 (200 kHz), 2 (SI Poort), 3 (SI Starboard)
+            81:[('SP81', '>u1'), ('volt_scale', '>u1'),], #Volt Scale (?)
+            146:[('SP146', '>u1'), ('f', '>u4'),], #Frequency of beam in hertz
+            83:[('SP83', '>u1'), ('unknown_83', '>u1'),], #Unknown (number of satellites???)
+            84:[('SP84', '>u1'), ('unknown_84', '>u1'),], #Unknown
+            149:[('SP149', '>u1'), ('unknown_149', '>u4'),], #Unknown (magnetic deviation???)
+            86:[('SP86', '>u1'), ('e_err_m', '>u1'),], #Easting variance (+-X error)
+            87:[('SP87', '>u1'), ('n_err_m', '>u1'),], #Northing variance
+            152:[('SP152', '>u1'), ('unknown_152', '>u4'),], #Unknown
+            153:[('SP153', '>u1'), ('unknown_153', '>u4'),], #Unknown
+            154:[('SP154', '>u1'), ('unknown_154', '>u4'),], #Unknown
+            155:[('SP155', '>u1'), ('unknown_155', '>u4'),], #Unknown
+            156:[('SP156', '>u1'), ('unknown_156', '>u4'),], #Unknown
+            157:[('SP157', '>u1'), ('unknown_157', '>u4'),], #Unknown
+            158:[('SP158', '>u1'), ('unknown_158', '>u4'),], #Unknown
+            159:[('SP159', '>u1'), ('unknown_159', '>u4'),], #Unknown
+            160:[('SP160', '>u1'), ('ping_cnt', '>u4'),] #Number of ping values (in bytes)
             }
 
-        file = open(self.sonFile, 'rb') # Open the file
+        file = open(sonFile, 'rb') # Open the file
         lastPos = 0 # Track last position in file
-        head = self._fread(file, 4,'B') # Get first 4 bytes of file
+        head = self._fread_dat(file, 4,'B') # Get first 4 bytes of file
 
         # If first four bytes match known Humminbird ping header
+        gotHeader = False
         if head[0] == 192 and head[1] == 222 and head[2] == 171 and head[3] == 33:
+            headStruct.append(('head_start', '>u4'))
             while lastPos < headBytes - 1:
                 lastPos = file.tell() # Get current position in file
-                byte = self._fread(file, 1, 'B')[0] # Decode the spacer byte
-                # If spacer byte not equal to 132 or 133
-                if byte != 132 and byte != 133:
-                    meta = toCheck[byte] # Get associated metadata for known byteVal
-                    meta[0] = lastPos # Store the current position
-                    headStruct[byte] = meta # Store what was found in headStruct
-                    file.seek(meta[0]+meta[1]+meta[2]) # Move to next position in file
-                # Spacer 132/133 store two sets of information per spacer, so
-                ## we need to handle differently.
+                byte = self._fread_dat(file, 1, 'B')[0] # Decode the spacer byte
+               
+                if byte == 33:
+                    file.seek(-6, 1)
+                    nextByte = self._fread_dat(file, 1, 'B')[0]
+                    if nextByte == 160:
+                        header_len = lastPos + 1
+                        lastPos = headBytes
+                        headStruct.append(('head_end', '>u1'))
+                
                 else:
-                    # Part 1 (first 2 bytes of 4 byte sequence following spacer)
-                    byte = byte + 0.1 # Append .1 to byteVal (i.e. 132.1 or 133.1)
-                    meta0_1 = toCheck[byte] # Get associated metadata for known byteVal
-                    meta0_1[0] = lastPos # Store the current position
-                    headStruct[byte] = meta0_1 # Store what was found in headStruct
+                    if byte in toCheck:
+                        for v in toCheck[byte]:
+                            headStruct.append(v)
+                    else:
+                        sys.exit('{} not in sonar header. Terminating.'.format(byte))
+                    if byte < 100:
+                        nextByte = 1
+                    else:
+                        nextByte = 4
+                    lastPos = file.tell() + nextByte # Update with current position
 
-                    # Part 2 (second 2 bytes of 4 byte sequence following spacer)
-                    byte = byte + 0.1 # Append .1 to byteVal (i.e. 132.2 or 133.3)
-                    meta0_2 = toCheck[byte] # Get associated metadata for known byteVal
-                    meta0_2[0] = lastPos # Store the current position
-                    headStruct[byte] = meta0_2 # Store what was found in headStruct
-                    file.seek(meta0_2[0]+meta0_2[1]+meta0_2[2]) # Move to next position in file
-                lastPos = file.tell() # Update with current position
+                
+                file.seek(lastPos)
 
         file.close() # Close the file
 
-        # We will ignore unknown attributes if exportUnknown==False, so we will
-        ## remove those from headStruct.  This will make metadata csv file smaller.
-        if not exportUnknown:
-            toDelete = [] # List to store uknown keys
-            for key, value in headStruct.items():# Iterate each element in headStruct
-                attributeName = value[3] # Get attribute name from headStruct element
-                if 'unknown' in attributeName: # If attribute name contains 'unknown'
-                    toDelete.append(key) # Add key name to toDelete
-            for key in toDelete: # Iterate each key in toDelete
-                del headStruct[key] # Remove key from headStruct
-
-        self.headStruct = headStruct # Store data in class attribute for later use
-        return
+        self.son_struct = np.dtype(headStruct) # Store data in class attribute for later use
+        return header_len
 
     def _parsePingHeader(self, in_file: str, out_file: str):
         '''

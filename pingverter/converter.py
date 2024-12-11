@@ -121,22 +121,47 @@ def hum2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
             # Add headbytes to humminbird object
             humminbird.frame_header_size = headbytes
 
+            auto_decode = False
+
             break
+
+        else:
+            auto_decode = True
 
     
     # Consider adding decodeHeadStruct() function back into PINGVerter....
+    if not gotHeader:
+        # sys.exit("\n#####\nERROR: Out of SON files... \n"+
+        #         "Unable to determine header length.")
+        print("\n#####\nERROR: Out of SON files... \n\n"+
+                "Trying to automatically determine header length...")
+        for beam, meta in beamMeta.items():
+        
+            # Get SON file
+            son = meta['sonFile']
 
+            # Autodecode
+            headbytes = humminbird._decodeHeadStruct(son)
 
+            if headbytes > 0:
+                print("\n######################\nSLAMMA-JAMMA-DING-DONG \n"+
+                      "Header Length Determined: {}\n\n".format(headbytes))
+                print("As you were....\n\n")
+                gotHeader = True
+
+                # Add headbytes to humminbird object
+                humminbird.frame_header_size = headbytes
+                break
     if not gotHeader:
         sys.exit("\n#####\nERROR: Out of SON files... \n"+
-                "Unable to determine header length.")
+                "Unable to automatically decode sonar header.")
         
     
     #############################################
     # Get the SON header structure and attributes
     #############################################
-
-    humminbird._getHeadStruct()
+    if not auto_decode:
+        humminbird._getHeadStruct()
 
     ##################
     # Parse son header
