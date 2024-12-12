@@ -548,7 +548,6 @@ class hum(object):
             i = 0
 
         file.close()
-        print(i)
         self.headBytes = i # Store data in class attribute for later use
         return i
     
