@@ -56,7 +56,7 @@ class hum(object):
     def __init__(self, humFile: str, nchunk: int=0, exportUnknown: bool=False):
         
         self.humFile = humFile
-        self.sonFile = humFile.split('.')[0]
+        self.sonFile = humFile.split('.DAT')[0]
         self.nchunk = nchunk
         self.exportUnknown = exportUnknown
 
