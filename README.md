@@ -67,6 +67,11 @@ Outputs from the above examples will be exported to `C:\Path\To\Outputs\MyProjec
   - Halmai, Akos; Gradwohl Valkay, Alexandra; Czigany, Szabolcs; Ficsor, Johanna; Liptay, ZoltAn Arpad; Kiss, Kinga; Loczy, Denes and Pirkhoffer, Ervin. 2020. "Applicability of a Recreational-Grade Interferometric Sonar for the Bathymetric Survey and Monitoring of the Drava River" ISPRS International Journal of Geo-Information 9, no. 3: 149. https://doi.org/10.3390/ijgi9030149
 - [sonarlight](https://github.com/KennethTM/sonarlight) - Kenneth Thoro Martinsen
 - [Navico (Lowrance, Simrad, B&G) Sonar Log File Format](https://www.memotech.franken.de/FileFormats/Navico_SLG_Format.pdf) - Herbert Oppmann
+- [Blue Robotics (BR)](https://bluerobotics.com/)
+- [BR Ping Protocol](https://github.com/bluerobotics/ping-protocol)
+- [Cerulean Sonar](https://ceruleansonar.com/)
+- [Cerulean Sonar Docs](https://docs.ceruleansonar.com/c/cerulean-ping-protocol/universal-packet-format)
+
 - [Vincent Capone](https://blacklaserlearning.com/) - Black Laser Learning
 
 

@@ -63,6 +63,8 @@ class hum(object):
         self.head_start_val = 3235818273
         self.head_end_val = 33
 
+        self.son8bit = True
+
         return
     #===========================================================================
     # Humminbird to PINGMapper

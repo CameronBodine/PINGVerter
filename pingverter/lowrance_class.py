@@ -1,4 +1,4 @@
-
+ 
 '''
 Dependency of PINGMapper: https://github.com/CameronBodine/PINGMapper
 
@@ -265,6 +265,8 @@ class low(object):
                                3: "455kHz", 4: "800kHz", 5: "38kHz", 
                                6: "28kHz", 7: "130kHz_210kHz", 8: "90kHz_150kHz", 
                                9: "40kHz_60kHz", 10: "25kHz_45kHz"}
+        
+        self.son8bit = True
         
         return
     

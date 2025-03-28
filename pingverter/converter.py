@@ -41,7 +41,7 @@ SOFTWARE.
 '''
 
 import os, sys
-from pingverter import hum, low
+from pingverter import hum, low, cerul
 import time
 import pandas as pd
 from glob import glob
@@ -289,6 +289,67 @@ def low2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
     lowrance.isOnix = 0
     
     return lowrance
+
+
+# =========================================================
+# Lowrance to PINGMapper
+# =========================================================
+
+def cerul2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, exportUnknown: bool=False):
+    '''
+    '''
+    # Make sure input exists
+    assert os.path.isfile(input), "{} does not exist.".format(input)
+
+    # Create the class
+    cerulean = cerul(svlog = input, nchunk=nchunk, exportUnknown=exportUnknown)
+
+    # Store Temperature
+    cerulean.tempC = float(tempC)/10
+
+    ######################
+    # Decode Cerulean File
+    ######################
+
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    # Create 'meta' directory if it doesn't exist
+    metaDir = os.path.join(out_dir, 'meta')
+    try:
+        os.mkdir(metaDir)
+    except:
+        pass
+    cerulean.metaDir = metaDir # Store metadata directory
+
+    # Get Cerulean file length
+    cerulean._getFileLen()
+
+    # Parse the file header
+    cerulean._parseFileHeader()
+
+    # Parse all packet headers
+    if exportUnknown:
+        cerulean._locatePacketsRaw()
+
+    # Locate Packet Headers
+    cerulean._locatePackets()
+
+    # Set beam
+    cerulean._convertBeam()
+
+    # Set frequency
+    cerulean._convertFrequency()
+    
+    # Recalculate record num
+    cerulean._recalcRecordNum()
+
+    # Save to file
+    cerulean._splitBeamsToCSV()
+
+    # print(cerulean)
+
+    return cerulean
 
 
 # =========================================================
