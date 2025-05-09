@@ -48,7 +48,11 @@ import pyproj
 
 '''
 Based on Sonarlight by Kenneth Thorø Martinsen
-The package is inspired by and builds upon other tools and descriptions for processing Lowrance sonar data, e.g. SL3Reader which includes a usefull paper, python-sllib, sonaR, Navico_SLG_Format notes, older blog post.
+The package is inspired by and builds upon other 
+tools and descriptions for processing Lowrance 
+sonar data, e.g. SL3Reader which includes a usefull 
+paper, python-sllib, sonaR, Navico_SLG_Format notes, 
+older blog post.
 '''
 
 #dtype for '.sl2' files (144 bytes)
@@ -462,8 +466,8 @@ class low(object):
         df['lon'] = (df['utm_e']/6356752.3142*(180/np.pi))
 
         # Determine epsg code
-        self.humDat['epsg'] = "epsg:"+str(int(float(self._convert_wgs_to_utm(df['lon'][0], df['lat'][0]))))
-        self.humDat['wgs'] = "epsg:4326"
+        self.humDat['epsg'] = "EPSG:"+str(int(float(self._convert_wgs_to_utm(df['lon'][0], df['lat'][0]))))
+        self.humDat['wgs'] = "EPSG:4326"
 
         # Configure re-projection function
         self.trans = pyproj.Proj(self.humDat['epsg'])

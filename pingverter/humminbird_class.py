@@ -827,7 +827,9 @@ class hum(object):
                         for v in toCheck[byte]:
                             headStruct.append(v)
                     else:
-                        sys.exit('{} not in sonar header. Terminating.'.format(byte))
+                        print('{} not in sonar header. Terminating.'.format(byte))
+                        print('Offset: {}'.format(file.tell()))
+                        sys.exit()
                     if byte < 100:
                         nextByte = 1
                     else:

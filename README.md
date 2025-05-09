@@ -9,6 +9,7 @@ A Python-based convertor for sonar logs collected with consumer-grade fishfinder
 
 - [Humminbird](https://humminbird.johnsonoutdoors.com/) ( *.DAT/ *.SON/ *.IDX)
 - [Lowrance](https://www.lowrance.com/) ( *.sl2 / *.sl3)
+- [Cerulean (Beta)](https://ceruleansonar.com/) (Omniscan 450 SS *.svlog)
 
 ## Installation
 
@@ -39,11 +40,24 @@ sonar_object = hum2pingmapper(inFile, projDir)
 from pingverter import low2pingmapper
 
 # Parameters
-inFile = r'C:\Path\To\Recording\Rec00001.DAT'
+inFile = r'C:\Path\To\Recording\Log.sl2'
 projDir = r'C:\Path\To\Outputs\MyProject'
 
 sonar_object = low2pingmapper(inFile, projDir)
 ```
+
+### Cerulean (Beta)
+```python
+# Import
+from pingverter import low2pingmapper
+
+# Parameters
+inFile = r'C:\Path\To\Recording\Log.svlog'
+projDir = r'C:\Path\To\Outputs\MyProject'
+
+sonar_object = cerul2pingmapper(inFile, projDir)
+```
+
 
 Outputs from the above examples will be exported to `C:\Path\To\Outputs\MyProject\meta`.
 
@@ -71,6 +85,7 @@ Outputs from the above examples will be exported to `C:\Path\To\Outputs\MyProjec
 - [BR Ping Protocol](https://github.com/bluerobotics/ping-protocol)
 - [Cerulean Sonar](https://ceruleansonar.com/)
 - [Cerulean Sonar Docs](https://docs.ceruleansonar.com/c/cerulean-ping-protocol/universal-packet-format)
+- [Blue Robotics Ping Protocol](https://docs.bluerobotics.com/ping-protocol/pingmessage-omniscan450/)
 
 - [Vincent Capone](https://blacklaserlearning.com/) - Black Laser Learning
 

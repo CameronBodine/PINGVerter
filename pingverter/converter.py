@@ -41,7 +41,7 @@ SOFTWARE.
 '''
 
 import os, sys
-from pingverter import hum, low, cerul
+from pingverter import hum, low, cerul#, gar
 import time
 import pandas as pd
 from glob import glob
@@ -290,9 +290,68 @@ def low2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
     
     return lowrance
 
+# =========================================================
+# Garmin to PINGMapper
+# =========================================================
+
+# def gar2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, exportUnknown: bool=False):
+
+#     # Make sure input exists
+#     assert os.path.isfile(input), "{} does not exist.".format(input)
+
+#     # Create the class
+#     garmin = gar(inFile=input, nchunk=nchunk, exportUnknown=exportUnknown)
+    
+#     # Store temperature
+#     garmin.tempC = float(tempC)/10
+
+#     ######################
+#     # Decode Lowrance File
+#     ######################
+
+#     if not os.path.exists(out_dir):
+#         os.mkdir(out_dir)
+
+#     # Create 'meta' directory if it doesn't exist
+#     metaDir = os.path.join(out_dir, 'meta')
+#     try:
+#         os.mkdir(metaDir)
+#     except:
+#         pass
+#     garmin.metaDir = metaDir # Store metadata directory
+
+#     # Get Garmin file length
+#     garmin._getFileLen()
+
+#     # Parse file header
+#     garmin._parseFileHeader()
+
+#     # Create 'meta' directory if it doesn't exist
+#     if not os.path.exists(out_dir):
+#         os.mkdir(out_dir)
+
+#     metaDir = os.path.join(out_dir, 'meta')
+#     try:
+#         os.mkdir(metaDir)
+#     except:
+#         pass
+#     garmin.metaDir = metaDir #Store metadata directory in sonObj
+
+#     # Save DAT metadata to file (csv)
+#     outFile = os.path.join(metaDir, 'DAT_meta.csv') # Specify file directory & name
+#     pd.DataFrame.from_dict(garmin.file_header, orient='index').T.to_csv(outFile, index=False) # Export DAT df to csv
+#     garmin.datMetaFile = outFile # Store metadata file path in sonObj
+#     del outFile
+
+#     # Parse ping headers (attributes) and do conversions
+#     garmin._parsePingHeader()
+
+
+#     print(garmin)
+
 
 # =========================================================
-# Lowrance to PINGMapper
+# Cerulean to PINGMapper
 # =========================================================
 
 def cerul2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, exportUnknown: bool=False):
