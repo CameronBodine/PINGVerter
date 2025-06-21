@@ -343,10 +343,26 @@ def gar2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
     garmin.datMetaFile = outFile # Store metadata file path in sonObj
     del outFile
 
-    print(garmin)
-
     # Parse ping headers (attributes) and do conversions
     garmin._parsePingHeader()
+
+    # Drop unknown
+    if not exportUnknown:
+        cols = garmin.header_dat.columns
+        cols = [c for c in cols if 'unknown' in c]
+
+        garmin.header_dat.drop(columns=cols, inplace=True)
+
+    # Recalculate record num
+    garmin._recalcRecordNum()
+
+    # Split and re-label beams to PING-Mapper convention
+    garmin._splitBeamsToCSV()
+
+    # Not Humminbird Onix
+    garmin.isOnix = 0
+    
+    return garmin
 
 
     
