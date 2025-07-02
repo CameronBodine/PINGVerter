@@ -392,6 +392,9 @@ class cerul(object):
         # Do interpolation of position/imu information for each ping
         df = self._doPosInterp(df)
 
+        # Drop nan's
+        df = df.dropna(subset=['ping_number','lat', 'lon']).reset_index(drop=True)
+
         # Do unit conversion
         df = self._doUnitConversion(df)
 
