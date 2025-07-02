@@ -63,6 +63,8 @@ class hum(object):
         self.head_start_val = 3235818273
         self.head_end_val = 33
 
+        self.son8bit = True
+
         return
     #===========================================================================
     # Humminbird to PINGMapper
@@ -825,7 +827,9 @@ class hum(object):
                         for v in toCheck[byte]:
                             headStruct.append(v)
                     else:
-                        sys.exit('{} not in sonar header. Terminating.'.format(byte))
+                        print('{} not in sonar header. Terminating.'.format(byte))
+                        print('Offset: {}'.format(file.tell()))
+                        sys.exit()
                     if byte < 100:
                         nextByte = 1
                     else:
@@ -1029,6 +1033,9 @@ class hum(object):
 
         # Add transect number (for aoi processing)
         df['transect'] = 0
+
+        # Store pixM
+        df['pixM'] = self.pixM
 
         # Other corrections Dan did, not implemented yet...
         # if sonHead['beam']==3 or sonHead['beam']==2:

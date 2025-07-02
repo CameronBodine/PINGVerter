@@ -41,7 +41,7 @@ SOFTWARE.
 '''
 
 import os, sys
-from pingverter import hum, low
+from pingverter import hum, low, cerul, gar
 import time
 import pandas as pd
 from glob import glob
@@ -289,6 +289,144 @@ def low2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
     lowrance.isOnix = 0
     
     return lowrance
+
+# =========================================================
+# Garmin to PINGMapper
+# =========================================================
+
+def gar2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, exportUnknown: bool=False):
+
+    # Make sure input exists
+    assert os.path.isfile(input), "{} does not exist.".format(input)
+
+    # Create the class
+    garmin = gar(inFile=input, nchunk=nchunk, exportUnknown=exportUnknown)
+    
+    # Store temperature
+    garmin.tempC = float(tempC)/10
+
+    ######################
+    # Decode Lowrance File
+    ######################
+
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    # Create 'meta' directory if it doesn't exist
+    metaDir = os.path.join(out_dir, 'meta')
+    try:
+        os.mkdir(metaDir)
+    except:
+        pass
+    garmin.metaDir = metaDir # Store metadata directory
+
+    # Get Garmin file length
+    garmin._getFileLen()
+
+    # Parse file header
+    garmin._parseFileHeader()
+
+    # Create 'meta' directory if it doesn't exist
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    metaDir = os.path.join(out_dir, 'meta')
+    try:
+        os.mkdir(metaDir)
+    except:
+        pass
+    garmin.metaDir = metaDir #Store metadata directory in sonObj
+
+    # Save DAT metadata to file (csv)
+    outFile = os.path.join(metaDir, 'DAT_meta.csv') # Specify file directory & name
+    pd.DataFrame.from_dict(garmin.file_header, orient='index').T.to_csv(outFile, index=False) # Export DAT df to csv
+    garmin.datMetaFile = outFile # Store metadata file path in sonObj
+    del outFile
+
+    # Parse ping headers (attributes) and do conversions
+    garmin._parsePingHeader()
+
+    # Drop unknown
+    if not exportUnknown:
+        cols = garmin.header_dat.columns
+        cols = [c for c in cols if 'unknown' in c]
+
+        garmin.header_dat.drop(columns=cols, inplace=True)
+
+    # Recalculate record num
+    garmin._recalcRecordNum()
+
+    # Split and re-label beams to PING-Mapper convention
+    garmin._splitBeamsToCSV()
+
+    # Not Humminbird Onix
+    garmin.isOnix = 0
+    
+    return garmin
+
+
+    
+
+
+# =========================================================
+# Cerulean to PINGMapper
+# =========================================================
+
+def cerul2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, exportUnknown: bool=False):
+    '''
+    '''
+    # Make sure input exists
+    assert os.path.isfile(input), "{} does not exist.".format(input)
+
+    # Create the class
+    cerulean = cerul(svlog = input, nchunk=nchunk, exportUnknown=exportUnknown)
+
+    # Store Temperature
+    cerulean.tempC = float(tempC)/10
+
+    ######################
+    # Decode Cerulean File
+    ######################
+
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    # Create 'meta' directory if it doesn't exist
+    metaDir = os.path.join(out_dir, 'meta')
+    try:
+        os.mkdir(metaDir)
+    except:
+        pass
+    cerulean.metaDir = metaDir # Store metadata directory
+
+    # Get Cerulean file length
+    cerulean._getFileLen()
+
+    # Parse the file header
+    cerulean._parseFileHeader()
+
+    # Parse all packet headers
+    if exportUnknown:
+        cerulean._locatePacketsRaw()
+
+    # Locate Packet Headers
+    cerulean._locatePackets()
+
+    # Set beam
+    cerulean._convertBeam()
+
+    # Set frequency
+    cerulean._convertFrequency()
+    
+    # Recalculate record num
+    cerulean._recalcRecordNum()
+
+    # Save to file
+    cerulean._splitBeamsToCSV()
+
+    # print(cerulean)
+
+    return cerulean
 
 
 # =========================================================
