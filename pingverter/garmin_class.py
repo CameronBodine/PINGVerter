@@ -92,15 +92,15 @@ class gar(object):
         # Neils beams: 1,3,4,5
         # UD beams: 0,2,4,6
         # Unsure and need to test
-        self.beam_set = {
-            2: ['ds_lowfreq', 0],
-            1: ['ds_hifreq', 1],
-            5: ['ss_port', 2],
-            6: ['ss_port', 2],
-            4: ['ss_star', 3],
-            0: ['ds_vhighfreq', 4],
-            3: ['ds_vhighfreq', 5],
-        }
+        # self.beam_set = {
+        #     2: ['ds_lowfreq', 0],
+        #     1: ['ds_hifreq', 1],
+        #     5: ['ss_port', 2],
+        #     6: ['ss_port', 2],
+        #     4: ['ss_star', 3],
+        #     0: ['ds_vhighfreq', 4],
+        #     3: ['ds_vhighfreq', 5],
+        # }
 
         return
     
@@ -164,9 +164,9 @@ class gar(object):
         # Get the file header structure
         headStruct, firstHeadBytes = self._getFileHeaderStruct()
 
-        print('\n\n\nheadStruct:')
-        for v in headStruct:
-            print(v)
+        # print('\n\n\nheadStruct:')
+        # for v in headStruct:
+        #     print(v)
         
         # Read the header
         file = open(self.sonFile, 'rb') # Open the file
@@ -182,8 +182,8 @@ class gar(object):
         for name, typ in header.dtype.fields.items():
             out_dict[name] = header[name][0].item()
 
-        for k,v in out_dict.items():
-            print(k, v)
+        # for k,v in out_dict.items():
+        #     print(k, v)
 
         self.file_header = out_dict
 
@@ -334,7 +334,7 @@ class gar(object):
                     file.seek(npos)
 
             lastPos = file.tell()
-            print('lastPos:', lastPos)        
+            # print('lastPos:', lastPos)        
 
         return headStruct, lastPos-1
     
@@ -386,7 +386,6 @@ class gar(object):
 
         # Test file to see outputs
         out_test = os.path.join(self.metaDir, 'All-Garmin-Sonar-MetaData.csv')
-        print(out_test)
         df.to_csv(out_test, index=False)
 
         # Store in class
@@ -625,7 +624,7 @@ class gar(object):
             17:[('SP11', '<u1'), ('port_star_elem_angle', '<u1')],
             25:[('SP19_bi', '<u1'), ('fore_aft_elem_angle', '<u1')],
             47:[('SP2f', '<u1'), ('su2_len', '<u1'), ('su2_fcnt', '<u1'),
-                ('su2_f0', '<u1'), ('su2_f0_unknown', '<f4'),
+                ('su2_f0', '<u1'), ('port_star_id', '<f4'),
                 ('su2_f1', '<u1'), ('su2_f1_unkown', '<f4'),
                 ],
             55:[('SP37', '<u1'), ('su3_len', '<u1'), ('su3_fcnt', '<u1'),
@@ -754,13 +753,20 @@ class gar(object):
         s = ds[1:] / t
         s = np.append(s[0], s)
 
+        # Assume constant speed for nan's. Need to interpolate.
+        s = pd.Series(s, index=df.index)
+        s.replace(0, np.nan, inplace=True)  # Replace 0 with NaN for interpolation
+        s.interpolate(method='linear', inplace=True)
+
         # Accumulate distance
         ds = np.cumsum(ds)
 
         # Store
-        # df['speed_ms'] = s
+        df['speed_ms'] = np.around(s, 1)
         df['trk_dist'] = ds
         # df['speed_ms'] = df['speed_ms'].fillna(0)
+
+
 
         return df
     
@@ -852,14 +858,13 @@ class gar(object):
         df['instr_heading'] = heading # Store COG in sDF
 
         # Replace 0 with NaN, interpolate, then fill any remaining NaN (e.g., with nearest valid value)
-        df['instr_heading'] = df['instr_heading'].replace(0, np.nan).interpolate().bfill().ffill()
+        df['instr_heading'] = np.around(df['instr_heading'].replace(0, np.nan).interpolate().bfill().ffill(), 1)
 
         # Add transect number (for aoi processing)
         df['transect'] = 0
 
         # Calculate pixel size [m]  *** ....MAYBE.... ***
         df['pixM'] = (df['last_sample_depth'] - df['first_sample_depth']) / df['sample_cnt']
-        # df['pixM'] = 0.0074
 
         return df
     
@@ -966,25 +971,43 @@ class gar(object):
     # ======================================================================
     def _splitBeamsToCSV(self):
 
+        beam_set = {}
+
         # Dictionary to store necessary attributes for PING-Mapper
         self.beamMeta = beamMeta = {}
 
         # Get df
         df = self.header_dat
 
+        # Get all unique beam and port_star_id combinations
+        dfBeams = df.drop_duplicates(subset=['channel_id', 'port_star_id'])
+        # Find channel_id for nan port_star_id
+        nanPortStar = dfBeams[dfBeams['port_star_id'].isna()]['channel_id'].unique()
+        if len(nanPortStar) > 1:
+            beam_set[nanPortStar.min()] = ('ds_hifreq', 1) # Default beam
+            beam_set[nanPortStar.max()] = ('ds_vhifreq', 4) # Default beam
+        else:
+            beam_set[nanPortStar[0]] = ('ds_hifreq', 1)
+
+        # Get channel_id from dfBeams for port is port_star_id==60
+        port_chan_id = dfBeams[dfBeams['port_star_id'] == 60]['channel_id'].iloc[0]
+        star_chan_id = dfBeams[dfBeams['port_star_id'] == -60]['channel_id'].iloc[0]
+        beam_set[port_chan_id] = ('ss_port', 2)
+        beam_set[star_chan_id] = ('ss_star', 3)
+
         # Iterate each beam
         for beam, group in df.groupby('channel_id'):
             meta = {}
             
             # Get Garmin beam to Humminbird beam
-            humBeamName, humBeamint = self.beam_set[beam]
+            humBeamName, humBeamint = beam_set[beam]
             humBeam = 'B00'+str(humBeamint)
             meta['beamName'] = humBeamName
             meta['beam'] = humBeam
 
-            # Set pixM based on side scan
-            if humBeamint == 2 or humBeamint == 3:
-                self.pixM = group['pixM'].iloc[0]
+            # # Set pixM based on side scan
+            # if humBeamint == 2 or humBeamint == 3:
+            #     self.pixM = group['pixM'].iloc[0]
 
             # Store sonFile
             meta['sonFile'] = self.sonFile

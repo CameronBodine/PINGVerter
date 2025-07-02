@@ -1034,6 +1034,9 @@ class hum(object):
         # Add transect number (for aoi processing)
         df['transect'] = 0
 
+        # Store pixM
+        df['pixM'] = self.pixM
+
         # Other corrections Dan did, not implemented yet...
         # if sonHead['beam']==3 or sonHead['beam']==2:
         #     dist = ((np.tan(25*0.0174532925))*sonHead['inst_dep_m']) +(tvg)
