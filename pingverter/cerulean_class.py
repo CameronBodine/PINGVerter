@@ -410,6 +410,10 @@ class cerul(object):
         # # Caclculate cog
         # df = self._calcCOG(df)
 
+        # Test file to see outputs
+        out_test = os.path.join(self.metaDir, 'All-Cerulean-Sonar-MetaData.csv')
+        df.to_csv(out_test, index=False)
+
         self.header_dat = df
 
         return
