@@ -395,16 +395,6 @@ class hum(object):
         --------------------
         self._cntHead()
         '''
-        # Check if file from Onix
-        if self.isOnix == 0:
-            utm_e = self.humDat['utm_e'] # Get easting
-            utm_n = self.humDat['utm_n'] # Get northing
-        # Need to add routine if Onix is encountered
-        else:
-            try:
-                pass
-            except:
-                pass
 
         # Convert easting/northing to latitude/longitude
         lat = np.arctan(np.tan(np.arctan(np.exp(utm_n/ 6378388.0)) * 2.0 - 1.570796326794897) * 1.0067642927) * 57.295779513082302
@@ -923,7 +913,7 @@ class hum(object):
         # Save to csv
         header_dat_all.to_csv(out_file, index=False)
 
-        return
+        return self.trans, self.humDat
     
     def _getPingHeader(self, file, i: int):
 
@@ -964,6 +954,10 @@ class hum(object):
 
         # Now calculate hdop from n/e variances
         df['hdop'] = np.round(np.sqrt(df['e_err_m']+df['n_err_m']), 2)
+
+        # Get epsg code
+        self._getEPSG(df['utm_e'].iloc[0], df['utm_n'].iloc[0])
+        print('\n\n', df['utm_e'].iloc[0], df['utm_n'].iloc[0])
 
         # Convert eastings/northings to latitude/longitude (from Py3Hum - convert using International 1924 spheroid)
         lat = np.arctan(np.tan(np.arctan(np.exp(df['utm_n']/ 6378388.0)) * 2.0 - 1.570796326794897) * 1.0067642927) * 57.295779513082302
@@ -1078,7 +1072,7 @@ class hum(object):
     #===========================================================================
 
     #===========================================================================
-    # Lowrance file to Humminbird
+    # Lowrance file to Humminbird (BETA)
     #===========================================================================
     def _makeOutFiles(self):
 

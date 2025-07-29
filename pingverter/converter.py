@@ -77,10 +77,6 @@ def hum2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
     # Read in the humdat data
     if humminbird.isOnix == 0:
         humminbird._getHumdat()
-
-        # Determine epsg code and transformation (if we can, ONIX doesn't have
-        ## lat/lon in DAT, so will determine at a later processing step).
-        humminbird._getEPSG()
     else:
         humminbird._decodeOnix()
 
@@ -94,12 +90,6 @@ def hum2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
     except:
         pass
     humminbird.metaDir = metaDir #Store metadata directory in sonObj
-
-    # Save DAT metadata to file (csv)
-    outFile = os.path.join(metaDir, 'DAT_meta.csv') # Specify file directory & name
-    pd.DataFrame.from_dict(humminbird.humDat, orient='index').T.to_csv(outFile, index=False) # Export DAT df to csv
-    humminbird.datMetaFile = outFile # Store metadata file path in sonObj
-    del outFile
 
     print("\nDone!")
     print("Time (s):", round(time.time() - start_time, ndigits=1))
@@ -208,7 +198,19 @@ def hum2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
     # Parse son header
     ##################
 
-    _ = Parallel(n_jobs = len(beamMeta), verbose=10 )(delayed(humminbird._parsePingHeader)(meta['sonFile'], meta['metaCSV']) for beam, meta in beamMeta.items())
+    r = Parallel(n_jobs = len(beamMeta), verbose=10 )(delayed(humminbird._parsePingHeader)(meta['sonFile'], meta['metaCSV']) for beam, meta in beamMeta.items())
+
+    # Store spatial transformation
+    for (trans, humdat) in r:
+        humminbird.trans = trans
+        humminbird.humDat = humdat
+        break
+
+    # Save DAT metadata to file (csv)
+    outFile = os.path.join(metaDir, 'DAT_meta.csv') # Specify file directory & name
+    pd.DataFrame.from_dict(humminbird.humDat, orient='index').T.to_csv(outFile, index=False) # Export DAT df to csv
+    humminbird.datMetaFile = outFile # Store metadata file path in sonObj
+    del outFile
 
     print("\nDone!")
     print("Time (s):", round(time.time() - start_time, ndigits=1))
