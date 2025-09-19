@@ -518,7 +518,8 @@ class hum(object):
 
                 # Check if we found the end of the ping.
                 ## A value of 33 **may** indicate end of ping.
-                if byte[0] == self.head_end_val and lastPos > 3:
+                ## 67 is the shortest known Humminbird ping header length.
+                if byte[0] == self.head_end_val and lastPos > 66:
                     # Double check we found the actual end by moving backward -6 bytes
                     ## to see if value is 160 (spacer preceding number of ping records)
                     file.seek(-6, 1)
