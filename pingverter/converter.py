@@ -106,7 +106,6 @@ def hum2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
     for s in sonFiles:
         beam = os.path.split(s)[-1].split('.')[0] #Get beam number (B000,B001,..)
         chanAvail[beam] = s
-    del beam
 
     humminbird.chanAvail = chanAvail
 
