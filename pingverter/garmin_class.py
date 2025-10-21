@@ -46,6 +46,13 @@ import pandas as pd
 from datetime import datetime, timezone, timedelta
 import pyproj
 
+# Add 'pingmapper' to the path, may not need after pypi package...
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PACKAGE_DIR = os.path.dirname(SCRIPT_DIR)
+sys.path.append(PACKAGE_DIR)
+
+from pingverter.verter_utils import filterGPS
+
 # # RSD structur
 # rsdStruct = np.dtype([
 #     ("test", "<u4"),
@@ -382,6 +389,9 @@ class gar(object):
 
         # Calculate speed & track distance (based on coords and time)
         df = self._calcSpeedTrkDist(df)
+
+        # Drop negative son_offset
+        df = df[df['son_offset'] > 0]
 
 
         # Test file to see outputs
@@ -732,7 +742,7 @@ class gar(object):
     
     ### Ping Header Conversions ###
     # ======================================================================
-    def _calcSpeedTrkDist(self, df: pd.DataFrame):
+    def _calcSpeedTrkDist(self, df: pd.DataFrame, jump_thresh: float=1.0):
 
         x = df['e'].to_numpy()
         y = df['n'].to_numpy()
@@ -750,8 +760,10 @@ class gar(object):
         df['dist'] = ds
 
         # Calculate speed
-        s = ds[1:] / t
+        s = np.where(t != 0, ds[1:] / t, np.nan)
         s = np.append(s[0], s)
+        s = pd.Series(s).fillna(method='ffill').fillna(method='bfill').to_numpy()
+
 
         # Assume constant speed for nan's. Need to interpolate.
         s = pd.Series(s, index=df.index)
@@ -830,8 +842,46 @@ class gar(object):
 
         ##################################
         # Calculate latitude and longitude
-        df['lat'] = df['scposn_lat'] * 360 / (1<<32)
-        df['lon'] = df['scposn_lon'] * 360 / (1<<32)
+        # df['lat'] = df['scposn_lat'] * 360 / (1<<32)
+        # df['lon'] = df['scposn_lon'] * 360 / (1<<32)
+
+        # df['lat'] = df['scposn_lat'].astype('float64') * (180.0 / (2**31))
+        # df['lon'] = df['scposn_lon'].astype('float64') * (180.0 / (2**31))
+
+        df['lat'] = df['scposn_lat'] * 360 / (1 << 32)
+        df['lon'] = df['scposn_lon'] * 360 / (1 << 32)
+
+        df['lat'] = df['lat'].apply(lambda x: x - 360 if x > 180 else x)
+        df['lon'] = df['lon'].apply(lambda x: x - 360 if x > 180 else x)
+
+        # Do filtering
+        df = filterGPS(df)
+
+
+
+
+        # print('\n\nConverted lat lon:')
+        # print(df[['lat', 'lon']].describe())
+
+        # import matplotlib.pyplot as plt
+
+        # plt.scatter(df['scposn_lon'], df['scposn_lat'], s=1, alpha=0.5)
+        # plt.title('Vessel Track')
+        # plt.xlabel('Longitude')
+        # plt.ylabel('Latitude')
+        # plt.grid(True)
+        # plt.show()
+
+        # plt.figure(figsize=(10, 6))
+        # plt.scatter(df['lon'], df['lat'], s=1, alpha=0.5, label='Cleaned')
+        # plt.title('GPS Track After Percentile Filtering')
+        # plt.xlabel('Longitude')
+        # plt.ylabel('Latitude')
+        # plt.grid(True)
+        # plt.legend()
+        # plt.show()
+
+
 
         # Determine epsg code
         self.humDat['epsg'] = "EPSG:"+str(int(float(self._convert_wgs_to_utm(df['lon'][0], df['lat'][0]))))
@@ -980,20 +1030,57 @@ class gar(object):
         df = self.header_dat
 
         # Get all unique beam and port_star_id combinations
-        dfBeams = df.drop_duplicates(subset=['channel_id', 'port_star_id'])
-        # Find channel_id for nan port_star_id
-        nanPortStar = dfBeams[dfBeams['port_star_id'].isna()]['channel_id'].unique()
-        if len(nanPortStar) > 1:
-            beam_set[nanPortStar.min()] = ('ds_hifreq', 1) # Default beam
-            beam_set[nanPortStar.max()] = ('ds_vhifreq', 4) # Default beam
-        else:
-            beam_set[nanPortStar[0]] = ('ds_hifreq', 1)
+        try:
+            dfBeams = df.drop_duplicates(subset=['channel_id', 'F'])
+        except:
+            dfBeams = df.drop_duplicates(subset=['channel_id'])
+            dfBeams['port_star_id'] = np.nan
 
-        # Get channel_id from dfBeams for port is port_star_id==60
-        port_chan_id = dfBeams[dfBeams['port_star_id'] == 60]['channel_id'].iloc[0]
-        star_chan_id = dfBeams[dfBeams['port_star_id'] == -60]['channel_id'].iloc[0]
-        beam_set[port_chan_id] = ('ss_port', 2)
-        beam_set[star_chan_id] = ('ss_star', 3)
+        # # Find channel_id for nan port_star_id
+        # nanPortStar = dfBeams[dfBeams['port_star_id'].isna()]['channel_id'].unique()
+
+        # if len(nanPortStar) > 1:
+        #     beam_set[nanPortStar.min()] = ('ds_hifreq', 1) # Default beam
+        #     beam_set[nanPortStar.max()] = ('ds_vhifreq', 4) # Default beam
+        # else:
+        #     beam_set[nanPortStar[0]] = ('ds_hifreq', 1)
+
+        # try:
+        #     # Get channel_id from dfBeams for port is port_star_id==60
+        #     port_chan_id = dfBeams[dfBeams['port_star_id'] == 60]['channel_id'].iloc[0]
+        #     star_chan_id = dfBeams[dfBeams['port_star_id'] == -60]['channel_id'].iloc[0]
+        #     beam_set[port_chan_id] = ('ss_port', 2)
+        #     beam_set[star_chan_id] = ('ss_star', 3)
+        # except:
+        #     pass
+
+        # Nievely assign beams
+        # if there are four beams, assume:
+        ## min value is 2d
+        ## second is down image
+        ## third is port
+        ## max is star
+        print('\n\nBeams Available:')
+        print(dfBeams['channel_id'])
+        if len(dfBeams) == 4:
+            # min, port, star, di = sorted(dfBeams['channel_id'].unique())
+            min, di, port, star = sorted(dfBeams['channel_id'].unique())
+            beam_set[min] = ('ds_hifreq', 1)
+            beam_set[port] = ('ss_port', 2)
+            beam_set[star] = ('ss_star', 3)
+            beam_set[di] = ('ds_vhifreq', 4)
+        
+        # If only 1 beam, assign to high freq
+        elif len(dfBeams) == 1:
+            beam_set[dfBeams['channel_id'][0]] = ('ds_hifreq', 1)
+
+        # Unknown return error
+        else:
+            print('\n\nERROR!')
+            print('Unknown beam ids:')
+            print(dfBeams['channel_id'].unique())
+            sys.exit()
+
 
         # Iterate each beam
         for beam, group in df.groupby('channel_id'):
@@ -1004,6 +1091,7 @@ class gar(object):
             humBeam = 'B00'+str(humBeamint)
             meta['beamName'] = humBeamName
             meta['beam'] = humBeam
+            group['beam'] = humBeamint
 
             # # Set pixM based on side scan
             # if humBeamint == 2 or humBeamint == 3:
