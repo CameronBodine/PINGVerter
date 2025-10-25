@@ -1069,6 +1069,12 @@ class gar(object):
             beam_set[port] = ('ss_port', 2)
             beam_set[star] = ('ss_star', 3)
             beam_set[di] = ('ds_vhifreq', 4)
+
+        # If 2 beams, assign to high freq and down image
+        elif len(dfBeams) == 2:
+            min, di = sorted(dfBeams['channel_id'].unique())
+            beam_set[min] = ('ds_hifreq', 1)
+            beam_set[di] = ('ds_vhifreq', 4)
         
         # If only 1 beam, assign to high freq
         elif len(dfBeams) == 1:
