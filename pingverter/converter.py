@@ -158,6 +158,8 @@ def hum2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
         else:
             auto_decode = True
 
+            gotHeader = False
+
     
     # Consider adding decodeHeadStruct() function back into PINGVerter....
     if not gotHeader:

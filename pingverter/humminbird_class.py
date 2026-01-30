@@ -434,6 +434,8 @@ class hum(object):
         -------
         A dictionary stored in self.humDat containing data from .DAT file.
         '''
+        t = self.tempC # Water temperature (Celcius) during survey divided by 10.
+
         fid2 = open(self.humFile, 'rb') # Open file
 
         dumpstr = fid2.read() # Store file contents
@@ -461,6 +463,34 @@ class hum(object):
         humdat['SourceDeviceModelIdDI'] = int(tmp.split('SourceDeviceModelIdDI=')[1].split('>')[0])
         humdat['water_type'] = 'fresh' #'shallow salt' #'deep salt'
         self.humDat = humdat # Store data in class attribute for later use
+
+        # Unsure about salinity for Onix
+        S = 1
+
+        # Calculate speed of sound based on temp & salinity
+        c = 1449.05 + 45.7*t - 5.21*t**2 + 0.23*t**3 + (1.333 - 0.126*t + 0.009*t**2)*(S - 35)
+
+        # Calculate time varying gain
+        self.tvg = ((8.5*10**-5)+(3/76923)+((8.5*10**-5)/4))*c
+        self.c = c
+        self.S = S
+
+        self.humDat['nchunk'] = self.nchunk
+        self.humDat = self.humDat # Store data in class attribute for later use
+
+        # Calculate pixel size in [m]
+        t = 0.108 # Transducer length
+        f = 455
+        # theta at 3dB in the horizontal
+        theta3dB = np.arcsin(c/(t*(f*1000)))
+        #resolution of 1 sidescan pixel to nadir
+        ft = (np.pi/2)*(1/theta3dB)
+        # size of pixel in meters
+        pix_m = (1/ft)
+
+        self.humDat['pixM'] = pix_m
+        self.pixM = pix_m
+
         return
 
     def _getBeamName(self, beam: str):
