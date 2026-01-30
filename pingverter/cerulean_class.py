@@ -153,9 +153,9 @@ class cerul(object):
 
             packet = self._getJSONdat(file, location=length, length=packet_head['packet_len'])
 
-            # for k,v in packet.items():
+            for k,v in packet.items():
 
-            #     print('\n\n', k, v)
+                print('\n\n', k, v)
 
             # Store time variables
             self.hardware_time_start = datetime.fromisoformat(packet['timestamp']).timestamp()
@@ -166,7 +166,12 @@ class cerul(object):
 
             # Sonar sensor appears to use the process_uptime
             ## Substrace from all sonar readings then add to timestamp to get absolute date/time
-            self.sonar_time_init = packet['os_uptime'] * 1000 # sec to ms
+            try:
+                self.sonar_time_init = packet['os_uptime'] * 1000 # sec to ms
+            except:
+                self.sonar_time_init = packet['session_uptime'] * 1000 # sec to ms
+                
+
 
             # Set class attributes
             self.file_header = packet
