@@ -11,6 +11,8 @@ A Python-based convertor for sonar logs collected with consumer-grade fishfinder
 - [Lowrance](https://www.lowrance.com/) ( *.sl2 / *.sl3)
 - [Garmin](https://www.garmin.com/en-US/c/marine/chartplotters/) (*.RSD)
 - [Cerulean](https://ceruleansonar.com/) (Omniscan 450 SS *.svlog)
+- [EdgeTech JSF](https://www.edgetech.com/) (*.jsf)
+- [XTF](https://www.exail.com/) (*.xtf)
 
 ## Installation
 
@@ -70,6 +72,30 @@ inFile = r'C:\Path\To\Recording\Log.svlog'
 projDir = r'C:\Path\To\Outputs\MyProject'
 
 sonar_object = cerul2pingmapper(inFile, projDir)
+```
+
+### JSF
+```python
+# Import
+from pingverter import jsf2pingmapper
+
+# Parameters
+inFile = r'C:\Path\To\Recording\Line001.jsf'
+projDir = r'C:\Path\To\Outputs\MyProject'
+
+sonar_object = jsf2pingmapper(inFile, projDir)
+```
+
+### XTF
+```python
+# Import
+from pingverter import xtf2pingmapper
+
+# Parameters
+inFile = r'C:\Path\To\Recording\Line001.xtf'
+projDir = r'C:\Path\To\Outputs\MyProject'
+
+sonar_object = xtf2pingmapper(inFile, projDir)
 ```
 
 
