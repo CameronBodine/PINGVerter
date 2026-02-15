@@ -24,6 +24,7 @@ class xtf(object):
         self.headBytes = 0
         self.son8bit = False
         self.sample_dtype = '<u2'
+        self.nav_units = None
 
     def _getFileLen(self):
         self.file_len = os.path.getsize(self.sonFile)
@@ -37,6 +38,7 @@ class xtf(object):
             raise ValueError('Invalid XTF file: file header shorter than 1024 bytes.')
 
         nav_units = struct.unpack_from('<H', base, 164)[0]
+        self.nav_units = int(nav_units)
         sonar_channels = struct.unpack_from('<H', base, 166)[0]
 
         if sonar_channels > 6:
@@ -149,6 +151,19 @@ class xtf(object):
         return
 
     def _split_combined_sidescan(self, df: pd.DataFrame):
+        if 'freq_band' not in df.columns:
+            return self._split_combined_sidescan_group(df)
+
+        combined_groups = []
+        for freq_band, group in df.groupby('freq_band', dropna=False):
+            combined_groups.append(self._split_combined_sidescan_group(group))
+
+        out = pd.concat(combined_groups, ignore_index=True)
+        out.sort_values(by=['time_s', 'beam'], inplace=True)
+        out.reset_index(drop=True, inplace=True)
+        return out
+
+    def _split_combined_sidescan_group(self, df: pd.DataFrame):
         beams = set(df['beam'].dropna().astype(int).unique().tolist())
 
         if 2 in beams and 3 in beams:
@@ -190,6 +205,19 @@ class xtf(object):
         if 'beam' not in df.columns:
             return df
 
+        if 'freq_band' not in df.columns:
+            return self._sync_port_star_metadata_group(df)
+
+        grouped = []
+        for _, group in df.groupby('freq_band', dropna=False):
+            grouped.append(self._sync_port_star_metadata_group(group))
+
+        out = pd.concat(grouped, ignore_index=True)
+        out.sort_values(by=['time_s', 'beam'], inplace=True)
+        out.reset_index(drop=True, inplace=True)
+        return out
+
+    def _sync_port_star_metadata_group(self, df: pd.DataFrame):
         beams = set(df['beam'].dropna().astype(int).unique().tolist())
         if not ({2, 3}.issubset(beams)):
             return df
@@ -279,7 +307,7 @@ class xtf(object):
         except Exception:
             time_s = float(ping_number)
 
-        lat, lon, e, n = self._decode_position(sensor_x, sensor_y)
+        lat, lon, e, n = self._decode_position(sensor_x, sensor_y, self.nav_units)
 
         for chan_idx in range(num_chans_to_follow):
             chan_off = self.ping_header_size + (chan_idx * self.ping_chan_header_size)
@@ -306,6 +334,7 @@ class xtf(object):
             chan_freq = float(chan_cfg.get('frequency', frequency)) if chan_cfg.get('frequency', frequency) is not None else np.nan
 
             beam = self._map_beam(channel_number, type_of_channel, chan_idx)
+            freq_band = self._map_freq_band(channel_number)
 
             pix_m = np.nan
             if num_samples > 0 and slant_range > 0:
@@ -330,6 +359,13 @@ class xtf(object):
                 self.son8bit = False
                 self.sample_dtype = '<u2'
 
+            sensor_depth_m = float(sensor_depth) if np.isfinite(sensor_depth) and float(sensor_depth) > 0 else np.nan
+            sensor_altitude_m = float(sensor_altitude) if np.isfinite(sensor_altitude) and float(sensor_altitude) > 0 else np.nan
+
+            dep_m = sensor_depth_m
+            if not np.isfinite(dep_m) and np.isfinite(sensor_altitude_m):
+                dep_m = sensor_altitude_m
+
             row = {
                 'index': int(record_start),
                 'son_offset': int(sample_offset),
@@ -342,15 +378,16 @@ class xtf(object):
                 'f': float(chan_freq) if np.isfinite(chan_freq) else np.nan,
                 'f_min': float(chan_freq) if np.isfinite(chan_freq) else np.nan,
                 'f_max': float(chan_freq) if np.isfinite(chan_freq) else np.nan,
+                'freq_band': freq_band,
                 'pixM': float(pix_m) if np.isfinite(pix_m) else np.nan,
                 'speed_ms': float(sensor_speed_kn) * 0.514444,
-                'inst_dep_m': float(sensor_depth) if np.isfinite(sensor_depth) else np.nan,
+                'inst_dep_m': sensor_depth_m,
                 'instr_heading': float(sensor_heading),
                 'pitch': float(sensor_pitch) if np.isfinite(sensor_pitch) else np.nan,
                 'roll': float(sensor_roll) if np.isfinite(sensor_roll) else np.nan,
                 'yaw': float(sensor_yaw) if np.isfinite(sensor_yaw) else np.nan,
-                'dep_m': float(sensor_depth) if np.isfinite(sensor_depth) else np.nan,
-                'altitude': float(sensor_altitude) if np.isfinite(sensor_altitude) else np.nan,
+                'dep_m': dep_m,
+                'altitude': sensor_altitude_m,
                 'lat': lat,
                 'lon': lon,
                 'e': e,
@@ -364,8 +401,18 @@ class xtf(object):
 
         return rows
 
-    def _decode_position(self, x: float, y: float):
-        if np.isfinite(y) and np.isfinite(x) and abs(y) <= 90 and abs(x) <= 180:
+    def _decode_position(self, x: float, y: float, nav_units=None):
+        if nav_units == 3 and np.isfinite(y) and np.isfinite(x) and abs(y) <= 90 and abs(x) <= 180:
+            lat = float(y)
+            lon = float(x)
+            epsg = self._convert_wgs_to_utm(lon, lat)
+            self.humDat['epsg'] = f'EPSG:{epsg}'
+            self.humDat['wgs'] = 'EPSG:4326'
+            self.trans = pyproj.Proj(self.humDat['epsg'])
+            e, n = self.trans(lon, lat)
+            return lat, lon, float(e), float(n)
+
+        if nav_units is None and np.isfinite(y) and np.isfinite(x) and abs(y) <= 90 and abs(x) <= 180:
             lat = float(y)
             lon = float(x)
             epsg = self._convert_wgs_to_utm(lon, lat)
@@ -400,9 +447,14 @@ class xtf(object):
             return 2
         return 3
 
-        if channel_number % 2 == 0:
-            return 2
-        return 3
+    def _map_freq_band(self, channel_number: int):
+        if channel_number in (0, 1):
+            return 'low'
+        if channel_number in (2, 3):
+            return 'high'
+        if channel_number in (4, 5):
+            return 'vhigh'
+        return None
 
     def _doUnitConversion(self, df: pd.DataFrame):
         if 'inst_dep_m' not in df.columns:
@@ -457,14 +509,26 @@ class xtf(object):
         self.beamMeta = beamMeta = {}
         df = self.header_dat
 
-        for beam, group in df.groupby('beam'):
+        group_cols = ['beam']
+        if 'freq_band' in df.columns:
+            group_cols.append('freq_band')
+
+        for group_key, group in df.groupby(group_cols):
+            if isinstance(group_key, tuple):
+                beam, freq_band = group_key
+            else:
+                beam, freq_band = group_key, None
             meta = {}
 
             if beam in [2, 3] and 'pixM' in group.columns and len(group) > 0:
                 self.pixM = group['pixM'].iloc[0]
 
             beam_name = f'B00{int(beam)}'
-            meta['beamName'] = self._getBeamName(beam_name)
+            base_name = self._getBeamName(beam_name)
+            if freq_band:
+                meta['beamName'] = f'{base_name}_{freq_band}'
+            else:
+                meta['beamName'] = base_name
             meta['sonFile'] = self.sonFile
 
             group = self._getChunkID(group.copy())
@@ -474,7 +538,8 @@ class xtf(object):
             group.to_csv(out_csv, index=False)
 
             meta['metaCSV'] = out_csv
-            beamMeta[beam_name] = meta
+            key = beam_name if not freq_band else f'{beam_name}_{freq_band}'
+            beamMeta[key] = meta
 
         return
 

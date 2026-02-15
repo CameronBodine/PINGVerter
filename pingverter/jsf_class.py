@@ -76,7 +76,7 @@ class jsf(object):
                 if message_type == 80 and msg_size >= self.msg80_header_size:
                     file.seek(i + self.msg_header_size)
                     msg80 = file.read(self.msg80_header_size)
-                    rows.append(self._decode_msg80(i, protocol_version, subsystem_number, channel, msg80))
+                    rows.append(self._decode_msg80(i, protocol_version, subsystem_number, channel, msg80, msg_size))
 
                 i = next_i
 
@@ -97,7 +97,7 @@ class jsf(object):
         self.header_dat = df
         return
 
-    def _decode_msg80(self, record_start, protocol_version, subsystem_number, channel, msg80):
+    def _decode_msg80(self, record_start, protocol_version, subsystem_number, channel, msg80, msg_size):
         time_since_1970 = struct.unpack_from('<i', msg80, 0)[0]
         ping_number = struct.unpack_from('<I', msg80, 8)[0]
         msb1 = struct.unpack_from('<H', msg80, 16)[0]
@@ -132,6 +132,7 @@ class jsf(object):
         speed_tenths_knots = struct.unpack_from('<h', msg80, 194)[0]
 
         milli_seconds_today = struct.unpack_from('<I', msg80, 200)[0]
+        max_abs_adc_raw = struct.unpack_from('<H', msg80, 204)[0]
         water_temp_tenths = struct.unpack_from('<h', msg80, 226)[0]
         layback_m = struct.unpack_from('<f', msg80, 228)[0]
         cable_out_dm = struct.unpack_from('<H', msg80, 236)[0]
@@ -139,9 +140,15 @@ class jsf(object):
         ints_per_sample = 2 if data_format in [1, 9] else 1
         ping_cnt = int(samples * ints_per_sample)
 
+        payload_bytes = max(int(msg_size) - self.msg80_header_size, 0)
+        max_ints = payload_bytes // 2
+        if max_ints >= 0 and ping_cnt > max_ints:
+            ping_cnt = int(max_ints)
+
         son_offset = self.msg_header_size + self.msg80_header_size
 
         beam = self._map_beam(subsystem_number, channel)
+        freq_band = self._map_freq_band(subsystem_number)
 
         lat, lon, e, n = self._decode_position(latitude_raw, longitude_raw, coord_units)
 
@@ -180,6 +187,9 @@ class jsf(object):
         if altitude_mm > 0 and (validity_flag & (1 << 6)):
             altitude_m = altitude_mm / 1000.0
 
+        if not np.isfinite(dep_m) and np.isfinite(altitude_m):
+            dep_m = altitude_m
+
         time_s = float(time_since_1970)
         if milli_seconds_today > 0:
             frac = (milli_seconds_today % 1000) / 1000.0
@@ -198,9 +208,11 @@ class jsf(object):
             'ping_cnt': int(ping_cnt),
             'data_format': int(data_format),
             'weighting_factor': int(weighting_factor),
+            'max_abs_adc_raw': int(max_abs_adc_raw),
             'f': float(f) if np.isfinite(f) else np.nan,
             'f_min': float(start_freq_khz) if np.isfinite(start_freq_khz) else np.nan,
             'f_max': float(end_freq_khz) if np.isfinite(end_freq_khz) else np.nan,
+            'freq_band': freq_band,
             'pixM': float(pix_m) if np.isfinite(pix_m) else np.nan,
             'instr_heading': float(heading),
             'pitch': float(pitch),
@@ -272,6 +284,17 @@ class jsf(object):
             return 1
         return 4
 
+    def _map_freq_band(self, subsystem_number: int):
+        if subsystem_number == 20:
+            return 'low'
+        if subsystem_number == 21:
+            return 'high'
+        if subsystem_number == 22:
+            return 'vhigh'
+        if subsystem_number == 70:
+            return 'custom70'
+        return None
+
     def _doUnitConversion(self, df: pd.DataFrame):
         if 'inst_dep_m' not in df.columns:
             if 'dep_m' in df.columns:
@@ -281,6 +304,19 @@ class jsf(object):
 
         if 'dep_m' not in df.columns:
             df['dep_m'] = df['inst_dep_m']
+
+        if 'altitude' in df.columns:
+            alt = pd.to_numeric(df['altitude'], errors='coerce')
+            inst = pd.to_numeric(df['inst_dep_m'], errors='coerce')
+            dep = pd.to_numeric(df['dep_m'], errors='coerce')
+
+            inst_fallback = (~np.isfinite(inst)) & np.isfinite(alt)
+            dep_fallback = (~np.isfinite(dep)) & np.isfinite(alt)
+
+            if inst_fallback.any():
+                df.loc[inst_fallback, 'inst_dep_m'] = alt.loc[inst_fallback]
+            if dep_fallback.any():
+                df.loc[dep_fallback, 'dep_m'] = alt.loc[dep_fallback]
 
         df['tempC'] = np.float32(self.tempC * 10)
 
@@ -317,14 +353,26 @@ class jsf(object):
         self.beamMeta = beamMeta = {}
         df = self.header_dat
 
-        for beam, group in df.groupby('beam'):
+        group_cols = ['beam']
+        if 'freq_band' in df.columns:
+            group_cols.append('freq_band')
+
+        for group_key, group in df.groupby(group_cols):
+            if isinstance(group_key, tuple):
+                beam, freq_band = group_key
+            else:
+                beam, freq_band = group_key, None
             meta = {}
 
             if beam in [2, 3] and 'pixM' in group.columns and len(group) > 0:
                 self.pixM = group['pixM'].iloc[0]
 
             beam_name = f'B00{int(beam)}'
-            meta['beamName'] = self._getBeamName(beam_name)
+            base_name = self._getBeamName(beam_name)
+            if freq_band:
+                meta['beamName'] = f'{base_name}_{freq_band}'
+            else:
+                meta['beamName'] = base_name
             meta['sonFile'] = self.sonFile
 
             group = self._getChunkID(group.copy())
@@ -334,7 +382,8 @@ class jsf(object):
             group.to_csv(out_csv, index=False)
 
             meta['metaCSV'] = out_csv
-            beamMeta[beam_name] = meta
+            key = beam_name if not freq_band else f'{beam_name}_{freq_band}'
+            beamMeta[key] = meta
 
         return
 
