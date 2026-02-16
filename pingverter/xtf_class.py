@@ -151,17 +151,7 @@ class xtf(object):
         return
 
     def _split_combined_sidescan(self, df: pd.DataFrame):
-        if 'freq_band' not in df.columns:
-            return self._split_combined_sidescan_group(df)
-
-        combined_groups = []
-        for freq_band, group in df.groupby('freq_band', dropna=False):
-            combined_groups.append(self._split_combined_sidescan_group(group))
-
-        out = pd.concat(combined_groups, ignore_index=True)
-        out.sort_values(by=['time_s', 'beam'], inplace=True)
-        out.reset_index(drop=True, inplace=True)
-        return out
+        return self._split_combined_sidescan_group(df)
 
     def _split_combined_sidescan_group(self, df: pd.DataFrame):
         beams = set(df['beam'].dropna().astype(int).unique().tolist())
@@ -334,7 +324,7 @@ class xtf(object):
             chan_freq = float(chan_cfg.get('frequency', frequency)) if chan_cfg.get('frequency', frequency) is not None else np.nan
 
             beam = self._map_beam(channel_number, type_of_channel, chan_idx)
-            freq_band = self._map_freq_band(channel_number)
+            freq_band = self._map_freq_band(channel_number, chan_idx)
 
             pix_m = np.nan
             if num_samples > 0 and slant_range > 0:
@@ -447,13 +437,23 @@ class xtf(object):
             return 2
         return 3
 
-    def _map_freq_band(self, channel_number: int):
+    def _map_freq_band(self, channel_number: int, chan_idx: int = None):
         if channel_number in (0, 1):
             return 'low'
         if channel_number in (2, 3):
             return 'high'
         if channel_number in (4, 5):
             return 'vhigh'
+
+        if chan_idx is not None:
+            pair_idx = int(chan_idx) // 2
+            if pair_idx == 0:
+                return 'low'
+            if pair_idx == 1:
+                return 'high'
+            if pair_idx == 2:
+                return 'vhigh'
+
         return None
 
     def _doUnitConversion(self, df: pd.DataFrame):
