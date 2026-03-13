@@ -41,12 +41,16 @@ SOFTWARE.
 '''
 
 import os, sys
-from pingverter import hum, low, cerul, gar, jsf, xtf
+from pingverter import hum, low, cerul, gar, jsf, xtf, sdf
 import time
 import pandas as pd
 from glob import glob
 
 from joblib import Parallel, delayed, cpu_count
+
+
+def _identity_transform(lon, lat):
+    return lon, lat
 
 # =========================================================
 # Humminbird to PINGMapper
@@ -494,6 +498,38 @@ def xtf2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, e
         xtf_obj.trans = lambda lon, lat: (lon, lat)
 
     return xtf_obj
+
+
+# =========================================================
+# SDF to PINGMapper
+# =========================================================
+
+def sdf2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, exportUnknown: bool=False):
+    assert os.path.isfile(input), "{} does not exist.".format(input)
+
+    sdf_obj = sdf(inFile=input, nchunk=nchunk, exportUnknown=exportUnknown)
+    sdf_obj.tempC = float(tempC)/10
+
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    metaDir = os.path.join(out_dir, 'meta')
+    try:
+        os.mkdir(metaDir)
+    except:
+        pass
+    sdf_obj.metaDir = metaDir
+
+    sdf_obj._getFileLen()
+    sdf_obj._parseFileHeader()
+    sdf_obj._parsePingHeader()
+    sdf_obj._recalcRecordNum()
+    sdf_obj._splitBeamsToCSV()
+
+    if not hasattr(sdf_obj, 'trans'):
+        sdf_obj.trans = _identity_transform
+
+    return sdf_obj
 
 
 # =========================================================
