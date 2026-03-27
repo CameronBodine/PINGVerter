@@ -41,12 +41,16 @@ SOFTWARE.
 '''
 
 import os, sys
-from pingverter import hum, low, cerul, gar
+from pingverter import hum, low, cerul, gar, jsf, xtf
 import time
 import pandas as pd
 from glob import glob
 
 from joblib import Parallel, delayed, cpu_count
+
+
+def _identity_transform(lon, lat):
+    return lon, lat
 
 # =========================================================
 # Humminbird to PINGMapper
@@ -430,6 +434,70 @@ def cerul2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10,
     # print(cerulean)
 
     return cerulean
+
+
+# =========================================================
+# JSF to PINGMapper
+# =========================================================
+
+def jsf2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, exportUnknown: bool=False):
+    assert os.path.isfile(input), "{} does not exist.".format(input)
+
+    jsf_obj = jsf(inFile=input, nchunk=nchunk, exportUnknown=exportUnknown)
+    jsf_obj.tempC = float(tempC)/10
+
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    metaDir = os.path.join(out_dir, 'meta')
+    try:
+        os.mkdir(metaDir)
+    except:
+        pass
+    jsf_obj.metaDir = metaDir
+
+    jsf_obj._getFileLen()
+    jsf_obj._parseFileHeader()
+    jsf_obj._parsePingHeader()
+    jsf_obj._recalcRecordNum()
+    jsf_obj._splitBeamsToCSV()
+
+    if not hasattr(jsf_obj, 'trans'):
+        jsf_obj.trans = lambda lon, lat: (lon, lat)
+
+    return jsf_obj
+
+
+# =========================================================
+# XTF to PINGMapper
+# =========================================================
+
+def xtf2pingmapper(input: str, out_dir: str, nchunk: int=500, tempC: float=10, exportUnknown: bool=False):
+    assert os.path.isfile(input), "{} does not exist.".format(input)
+
+    xtf_obj = xtf(inFile=input, nchunk=nchunk, exportUnknown=exportUnknown)
+    xtf_obj.tempC = float(tempC)/10
+
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
+
+    metaDir = os.path.join(out_dir, 'meta')
+    try:
+        os.mkdir(metaDir)
+    except:
+        pass
+    xtf_obj.metaDir = metaDir
+
+    xtf_obj._getFileLen()
+    xtf_obj._parseFileHeader()
+    xtf_obj._parsePingHeader()
+    xtf_obj._recalcRecordNum()
+    xtf_obj._splitBeamsToCSV()
+
+    if not hasattr(xtf_obj, 'trans'):
+        xtf_obj.trans = lambda lon, lat: (lon, lat)
+
+    return xtf_obj
 
 
 # =========================================================

@@ -1,0 +1,2320 @@
+    JSF FILE AND MESSAGE DESCRIPTIONS
+
+0023492_REV_R                         December 22, 2025
+
+
+
+
+                                            EdgeTech
+                                  4 Little Brook Road
+                            West Wareham, MA 02576
+
+
+                                  Tel: (508) 291-0057
+                                 Fax: (508) 291-2491
+                                 www.EdgeTech.com
+ii
+
+
+The information, figures, and specifications in this manual are proprietary. They are issued in strict
+confidence on the condition that they not be copied, reprinted, or disclosed to a third party, either
+wholly or in part, without the prior written consent of EdgeTech. Any reproduction of EdgeTech-
+supplied software or file sharing is strictly prohibited.
+© EdgeTech 2016 - 2026. All rights reserved.
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                           0023492_REV_R
+                                                                                               iii
+
+
+
+CUSTOMER SERVICE
+
+Customer service personnel at EdgeTech are always eager to hear from users of our products. Your
+feedback is welcome and a valuable source of information that we use to improve these products
+continually. We encourage you to contact EdgeTech Customer Service to offer any suggestions or to
+request technical support:
+
+
+
+E-mail:                      service@edgetech.com
+
+Mail:                        4 Little Brook Road
+                             West Wareham, MA 02576
+
+Telephone:                   (508) 291-0057
+
+Fax:                         (508) 291-2491
+
+24-Hour Emergency
+Technical Support Line:      (508) 942-8043
+
+
+
+For more information, please go to WWW.EDGETECH.COM.
+iv
+
+
+
+ABOUT THIS DOCUMENT
+Purpose of this Document
+This is a reference manual describing JSF files and messages.
+
+License Statement
+This document is the property of EdgeTech and is protected under Copyright Law. Redistribution without
+modification is permitted.
+
+Limitation of Liability
+This content is protected under copyright law, furnished for informational use only, is subject to change
+without notice, and should not be construed as a commitment by EdgeTech. EdgeTech assumes no
+responsibility or liability for any errors or inaccuracies that may appear in the informational content
+contained in this manual. EdgeTech reserves the right to upgrade JSF and make changes to this manual
+without notice at any time.
+
+Distribution
+EdgeTech does not grant the right to give away, sell, license, re-package, or otherwise distribute any
+portion of this document without the written permission of EdgeTech, Inc.
+
+Revision History
+ REV         DESCRIPTION                                                DATE             APPROVAL
+ 1.20        Updated to include the latest messages                     03/08/2016          LB
+ 2.0         Updated to include the latest message                      07/06/2018          HS
+ 3.0         Updated to add Heave field message 80                      06/03/2020          HS
+ A           Document merged with Bathymetric Data                      06/12/2020         MM
+ B           3000 Message Update- Bin Size Field Added                  08/13/2020          HS
+ C           Updated to include Reflection Coefficient Message          04/06/2021          HS
+ D           RC Message Update                                          07/30/2021          CC
+ E           Updated Message 80, Table 2-3 to include Gap Filler        11/02/2021          CC
+ F           Format Revision Level 4 Update                             12/16/2021          EM
+ G           3000 Message Fix                                           06/21/2022          EM
+ H           Message 80 Update                                          04/22/2023           TJ
+ J           Message 1260 Update                                        09/29/2023           TJ
+ K           Message 1260 Further Updates                               01/10/2023           TJ
+ M           Message 40 Added                                           08/20/2024           TJ
+ N           eBOSS Update: Message 4000 and 4034 Added                  05/16/2025           TJ
+ O           Message Type 80 Documentation Update                       08/18/2025          HS
+ P           Message Type 4034 Update                                   09/11/2025           TJ
+ Q           Message Type 4000 and 4034 Updates                         11/26/2025           TJ
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                        0023492_REV_R
+                                                          v
+
+
+REV   DESCRIPTION                 DATE         APPROVAL
+R     Message 40 Details Update   12/22/2025      TJ
+vi
+
+
+
+SOFTWARE SERVICE OVERVIEW
+
+EdgeTech provides software services free of charge. This software agreement does not address customer-
+specified modifications or enhancements. These services may be ordered separately. Furthermore,
+EdgeTech software upgrades are meant for the sole use of EdgeTech customers. Any reproduction of
+EdgeTech-supplied software or file sharing is strictly prohibited.
+
+
+Software Updates and Enhancements
+EdgeTech customers can download new software releases with all modifications and enhancements from
+the EDGETECH WEBSITE RESOURCE CENTER. Should major software issues occur, they will be reported directly
+to the customer. New software releases consist of the following:
+
+     •   Software enhancements that are not on the price list
+     •   Software fixes and changes
+     •   Product integration
+     •   Documentation updates to online help
+     •   Tests for compatibility with other modules
+
+Software patches consist of software that has undergone the following:
+
+     •   Minor software enhancements
+     •   Software fixes and changes
+
+EdgeTech customers are entitled to contact CUSTOMER SERVICE by telephone, fax, or e-mail to report a
+difficulty, discuss a problem, or receive advice on the best way to perform a task. When contacted,
+EdgeTech Customer Service will do the following:
+
+     •   Respond within 24 hours via Telephone, Fax, and E-mail Support
+     •   Immediately attend to serious problems affecting operations
+
+Attempt to find an immediate workaround
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                        0023492_REV_R
+                                                                                                                                                             vii
+
+
+
+TABLE OF CONTENTS
+
+CUSTOMER SERVICE..................................................................................................................................... iii
+ABOUT THIS DOCUMENT ............................................................................................................................. iv
+   Purpose of this Document ....................................................................................................................... iv
+   License Statement.................................................................................................................................... iv
+   Limitation of Liability ............................................................................................................................... iv
+   Distribution .............................................................................................................................................. iv
+   Revision History ....................................................................................................................................... iv
+SOFTWARE SERVICE OVERVIEW .................................................................................................................. vi
+   Software Updates and Enhancements..................................................................................................... vi
+TABLE OF CONTENTS................................................................................................................................... vii
+LIST OF FIGURES ............................................................................................................................................ x
+LIST OF TABLES ............................................................................................................................................. xi
+1.0                  OVERVIEW .............................................................................................................................. 1
+   1.1 The JSF File ....................................................................................................................................... 1
+   1.2 Byte Ordering ................................................................................................................................... 1
+2.0                  JSF FILE FORMAT DEFINITION ................................................................................................ 2
+   2.1 Message Header .............................................................................................................................. 2
+   2.2 Acoustic Message............................................................................................................................. 3
+       2.2.1 Message Type 80: Sonar Data Message (jsfdefs.h) ................................................................... 3
+           2.2.1.1              Message Type 80 Data Format Block ......................................................................... 4
+           2.2.1.2              Message Type 80 Navigation Data Block ................................................................... 6
+           2.2.1.3              Message Type 80 Pulse Information Block ................................................................ 7
+           2.2.1.4              Message Type 80 CPU Time Block.............................................................................. 9
+           2.2.1.5              Message Type 80 Weighting Factor Block ................................................................. 9
+           2.2.1.6              Message Type 80 Orientation Sensor Data Block .................................................... 10
+           2.2.1.7              Message Type 80 Trigger Information Block............................................................ 10
+           2.2.1.8              Message Type 80 NMEA Navigation Data Block ...................................................... 11
+           2.2.1.9              Message Type 80 Miscellaneous Data Block............................................................ 11
+   2.3 Other Messages ............................................................................................................................. 12
+       2.3.1 Message Type 40: Sonar Message Status ............................................................................... 12
+viii
+
+
+          2.3.1.1             TimeSyncSentenceType ........................................................................................... 14
+          2.3.1.2             TimeSyncStatusEnumType ....................................................................................... 15
+          2.3.1.3             SerialPortStateEnumType ........................................................................................ 15
+          2.3.1.4             SonarAlertEnumType ............................................................................................... 16
+       2.3.2 Message Type 181: Navigation Offsets ................................................................................... 17
+       2.3.3 Message Type 182: System Information ................................................................................. 17
+       2.3.4 Message Type 1260: Target File Data ..................................................................................... 18
+   2.4 Auxiliary Messages ......................................................................................................................... 19
+       2.4.1 Message Type 2002: NMEA String .......................................................................................... 19
+       2.4.2 Message Type 2020: Pitch Roll Data ....................................................................................... 20
+       2.4.3 Message Type 2060: Pressure Sensor Reading ....................................................................... 21
+       2.4.4 Message Type 2071: Reflection Coefficient ............................................................................ 21
+       2.4.5 Message Type 2080: Doppler Velocity Log Data (DVL) ........................................................... 22
+       2.4.6 Message Type 2091: Situation Comprehensive Message (Version 2) .................................... 23
+       2.4.7 Message Type 2100: Cable Counter Data Message ................................................................ 25
+       2.4.8 Message Type 2101: Kilometer of Pipe Data .......................................................................... 25
+       2.4.9 Message Type 2111: Container Timestamp Message ............................................................. 25
+   2.5 Bathymetric Messages ................................................................................................................... 26
+       2.5.1 Message Type 3000: Bathymetric Data Message ................................................................... 26
+          2.5.1.1             Header Description .................................................................................................. 26
+          2.5.1.2             Data Fields ................................................................................................................ 27
+             2.5.1.2.1        Uncertainty Estimates ............................................................................................. 28
+             2.5.1.2.2        Format Revision Level.............................................................................................. 28
+             2.5.1.2.3        Binning Flag ............................................................................................................. 28
+             2.5.1.2.4        Span ......................................................................................................................... 28
+          2.5.1.3             Format Revision Level 4 or higher ............................................................................ 29
+          2.5.1.4             Essential Calculations / Definitions .......................................................................... 29
+             2.5.1.4.1        Echo Time ................................................................................................................ 29
+             2.5.1.4.2        Nominal Slant Range to Echo .................................................................................. 30
+             2.5.1.4.3        Range Uncertainty Estimate .................................................................................... 30
+             2.5.1.4.4        The angle from Nadir for Each Sample .................................................................... 30
+             2.5.1.4.5        Amplitude ................................................................................................................ 31
+             2.5.1.4.6        Angle Uncertainty Estimate ..................................................................................... 31
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                                                                      0023492_REV_R
+                                                                                                                                                       ix
+
+
+          2.5.1.4.7       Flag Interpretation................................................................................................... 31
+          2.5.1.4.8       Coherent SNR .......................................................................................................... 32
+          2.5.1.4.9       EdgeTech Bathymetric Quality Factor ..................................................................... 32
+          2.5.1.4.10        Nadir Depth (or Depth below Sounder) ................................................................ 33
+          2.5.1.4.11        Seafloor Samples ................................................................................................... 33
+          2.5.1.4.12        Binning ................................................................................................................... 33
+   2.5.2 Message Type 3001: AttitudeMessageType ........................................................................... 34
+      2.5.2.1             Example 1 ................................................................................................................. 35
+      2.5.2.2             Example 2 ................................................................................................................. 35
+   2.5.3 Message Type 3002: PressureMessageType ........................................................................... 35
+   2.5.4 Message Type 3003: AltitudeMessageType ............................................................................ 36
+   2.5.5 Message Type 3004: PositionMessageType ............................................................................ 37
+   2.5.6 Message Type 3005: StatusMessageType ............................................................................... 38
+   2.5.7 Message Type 3041: BathymetricParameterPublicMessageType .......................................... 39
+2.6 Beamformed Messages ................................................................................................................. 41
+   2.6.1 Message Type 4000: BossBeamformedVolumeData Structure .............................................. 41
+   2.6.2 Message Type 4034: EDPMSG_NAV Structure........................................................................ 41
+      2.6.2.1             NAV_VALID Flag Values (AtlasEdpMsgValidityValues)............................................. 43
+x
+
+
+
+LIST OF FIGURES
+
+Figure 1-1: Utility Showing Typical Messages Contained within a JSF File ................................................... 1
+Figure 2-1: Angles per side, as reported from Nadir .................................................................................. 30
+Figure 2-2: Angles displayed as a single reference frame........................................................................... 31
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                                                    0023492_REV_R
+                                                                                                                                                 xi
+
+
+
+LIST OF TABLES
+
+Table 2-1: 16-byte Message Header Template ............................................................................................. 2
+Table 2-2: Message Type 80 Data Format Block ........................................................................................... 4
+Table 2-3: Message Type 80 Navigation Data Block ..................................................................................... 6
+Table 2-4: Message Type 80 Pulse Information Block .................................................................................. 7
+Table 2-5: Message Type 80 CPU Time Block ............................................................................................... 9
+Table 2-6: Message Type 80 Weighting Factor Block ................................................................................... 9
+Table 2-7: Message Type 80 Orientation Sensor Data Block ...................................................................... 10
+Table 2-8: Message Type 80 Trigger Information Block ............................................................................. 10
+Table 2-9: Message Type 80 NMEA Navigation Data Block ........................................................................ 11
+Table 2-10: Message Type 80 Miscellaneous Data Block ........................................................................... 11
+Table 2-11: Message Type 40: Sonar Message Status ................................................................................ 12
+Table 2-12: Message 40 TimeSyncSentenceType Enumeration Descriptions ............................................ 14
+Table 2-13: Message 40 TimeSyncStatusEnumType Enumeration Descriptions ........................................ 15
+Table 2-14: Message 40 SerialPortStateEnumType Enumeration Descriptions ......................................... 15
+Table 2-15: Message 40 SonarAlertEnumType Enumeration Descriptions ................................................ 16
+Table 2-16: Message Type 181: Navigation Offsets.................................................................................... 17
+Table 2-17: Message Type 182 System Information................................................................................... 17
+Table 2-18: Message Type 1260: Target File Data ...................................................................................... 18
+Table 2-19: Message Type 2002 NMEA String ............................................................................................ 19
+Table 2-20: Message Type 2020 Pitch Roll ................................................................................................. 20
+Table 2-21: Message Type 2060 Pressure Sensor....................................................................................... 21
+Table 2-22: Message Type 2071 Reflection Coefficient .............................................................................. 22
+Table 2-23: Message Type 2080 DVL .......................................................................................................... 23
+Table 2-24: Message Type 2091 Situation Comprehensive ........................................................................ 24
+Table 2-25: Message Type 2100 Cable Counter ......................................................................................... 25
+Table 2-26: Message Type 2101 Kilometer of Pipe .................................................................................... 25
+Table 2-27: Message Type 2111 Container................................................................................................. 26
+Table 2-28: Header Description .................................................................................................................. 26
+Table 2-29: Format Revision Level 4 or Higher ........................................................................................... 29
+Table 2-30: AttitudeMessageType .............................................................................................................. 34
+Table 2-31: PressureMessageType ............................................................................................................. 36
+Table 2-32: AltitudeMessageType .............................................................................................................. 36
+xii
+
+
+Table 2-33: PositionMessageType .............................................................................................................. 37
+Table 2-34: StatusMessageType ................................................................................................................. 38
+Table 2-35: BathymetricParameterPublicMessageType............................................................................. 39
+Table 2-36: BossBeamformedVolumeData ................................................................................................. 41
+Table 2-37: EDPMSG_NAV Structure .......................................................................................................... 41
+Table 2-38: NAV_VALID Flag Values............................................................................................................ 43
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                                                            0023492_REV_R
+                                                                                                               1
+
+
+
+1.0 OVERVIEW
+
+This document describes the most common messages found in EdgeTech’s JSF files and is not intended to
+describe all messages contained within completely. This document should also be used in conjunction
+with the JSFdefs.h header file to read, store, and process JSF files properly.
+
+1.1 The JSF File
+EdgeTech’s native file format is stored as a binary file with the extension *.jsf. A JSF file consists of several
+types of messages, each beginning with a 16-byte header indicating the type of data to follow and its size.
+The JSF file has been used for over ten
+years and is recorded by default by
+most EdgeTech topsides running the
+Discover     and    JStar    acquisition
+programs.
+
+Sonar data is recorded to a JSF file on a
+per-channel basis. A single-frequency
+side scan system has two messages per
+ping–one for the port (channel 0) and
+one for the starboard (channel 1). Other
+data types, such as those coming from
+a motion reference unit (MRU),
+providing pitch, roll, and heave, have
+their own specific message and similarly
+have a single message per reading set.
+Different data types will have different
+message numbers, as identified by the
+Message Type field. A typical file might
+contain the following messages, as
+depicted in EdgeTech’s JSF File Viewer
+Utility (FIGURE 1-1)
+                                             Figure 1-1: Utility Showing Typical Messages Contained within a
+                                                                          JSF File
+1.2 Byte Ordering
+The byte ordering of 16-bit and 32-bit values is important since the JSF format is stored using little-endian
+(Intel) format for binary data, where the least significant bytes are stored first. This is the native format
+for Intel x86 computers and compatibles. If data is read on a big-endian machine, the user should byte
+reverse the data so that the 2 bytes of a 16-bit value are flipped, and the 4 bytes of a 32-bit value are
+flipped (i.e., bytes 0, 1, 2, 3 become bytes 3, 2, 1, 0).
+2
+
+
+
+2.0 JSF FILE FORMAT DEFINITION
+
+A JSF file consists of several types of messages, each beginning with a 16-byte header indicating the type
+of data to follow and its size. This section describes the message header and some potential messages
+contained within a single JSF file.
+
+2.1 Message Header
+The header identifies the type and size of the message and the originating subsystem and channel. The
+header format is given below in Table 2-1.
+
+ BYTE OFFSETS       DESCRIPTION                                                                    SIZE
+                    Marker for the Sync/Start of Header (always 0x1601)
+ 0–1                                                                                              UINT16
+                    This serves as a sanity check during file processing.
+                    Protocol Version (e.g. 0xD).
+                    The protocol level indicates which specification revision was used to
+                    write that message. Messages of differing protocol levels may be
+ 2                                                                                                UINT8
+                    interspersed in the same file. Protocol-level changes may involve
+                    additional messages or changes to the non-public portion of the
+                    interface.
+                    Session Identifier
+ 3                                                                                                UINT8
+                    The session identifier is used for internal routing and can be ignored.
+                    Message Type (e.g. 80 = Acoustic Return Data)
+                    This field defines the type of data to follow. Some data formats of
+                    interest are detailed in the following sections. If this field contains an
+ 4–5                                                                                              UINT16
+                    unwanted or unknown (i.e., not defined) type, use the Size of the
+                    Message (bytes 12– 15) to skip over the data to the next message
+                    header. The message protocol is used for command, control, and data.
+                    Command Type
+                    2 = Normal data source
+ 6                                                                                                UINT8
+                    The command type field can typically be ignored when reading JSF files
+                    as this parameter may only be of interest during real-time operation.
+                    Subsystem Number
+ 7                  The subsystem number determines the source of data; common                    UINT8
+                    subsystem assignments are:
+                    (CONTINUED NEXT PAGE)
+
+                              Table 2-1: 16-byte Message Header Template
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                             0023492_REV_R
+                                                                                                           3
+
+
+ BYTE OFFSETS       DESCRIPTION                                                                    SIZE
+                        •   Sub-Bottom (SB) = 0
+                        •   Low frequency data of a dual-frequency side scan = 20
+                        •   High frequency data of a dual-frequency side scan = 21
+                        •   Very High frequency data of a tri-frequency side scan = 22
+                        •   Bathymetric low frequency data of a dual side scan=40
+                        •   Bathymetric high frequency data of a dual side scan=41
+                        •   Bathymetric very high frequency of a tri-frequency=42
+                        •   Bathymetric motion tolerant, low frequency dual side scan=70
+ 7 (continued)          •   Bathymetric motion tolerant high frequency dual side scan=71          UINT8
+                        •   Bathymetric motion tolerant very high frequency tri-
+                            frequency=72
+                        • Raw Serial/UDP/TCP data =100
+                        • Parsed Serial/UDP/TCP data =101
+                        • Gap Filler data =120
+                    Standard side scan systems are single or dual frequency. When more
+                    than two side scan frequencies are present, the subsystem number
+                    begins at 20 and increases with increasing acoustic center frequencies.
+                    Channel for a Multi-Channel Subsystem
+                    For Side Scan Subsystems:
+                       0 = Port
+ 8                     1 = Starboard                                                              UINT8
+                    For Serial Ports: this will be the logical port number, which often differs
+                    from the physical COM port in use.
+                    The single-channel sub-bottom systems channel is 0.
+ 9                  Sequence Number                                                               UINT8
+ 10 – 11            Reserved                                                                      UINT16
+                    Size of the following message in bytes
+                    The byte count is the number of bytes until the start of the next
+ 12 – 15            message header. This is the amount of additional data to read if              INT32
+                    processing the current message or the amount of data to skip over if
+                    the current message is not of interest.
+                       Table 2-1: 16-byte Message Header Template (Continued)
+
+2.2 Acoustic Message
+The Sonar Data Message (Type 80) is the acoustic data message.
+
+
+2.2.1 Message Type 80: Sonar Data Message (jsfdefs.h)
+The Sonar Data Message consists of a single channel ping of data (receiver sounding period) for a single
+channel (e.g., port side of low frequency side scan subsystem). Most side scan subsystems have two data
+channels: port and starboard. Most sub-bottom subsystems have a single data channel. The fields' data
+4
+
+
+presence depends on the system used and data acquisition procedures. In addition, this message may
+contain data from multiple non-acoustic sensors. Non-acoustic data contained in this message normally
+is not time interpolated.
+
+EdgeTech strongly recommends that if high positional or situational accuracy is required, the individual
+sensor messages should be processed instead (see sub-section 2.4 AUXILIARY MESSAGES). Otherwise, this
+may be the only message that needs to be interpreted in a JSF file if the level of accuracy is sufficient. The
+Validity Flag field (bytes 30-31) indicates which auxiliary fields are populated. By convention, the field is
+set to 0 if a value is absent.
+
+A Sonar Data Message consists of a 240-byte header followed by the actual acoustic sample data. This
+240-byte header is described in the table below.
+
+
+2.2.1.1 Message Type 80 Data Format Block
+
+ BYTE OFFSETS        DESCRIPTION                                                                       SIZE
+                     TimeSince1970
+                        • Ping Time in seconds since the start of time-based time
+                            function (midnight 1/1/1970)
+ 0–3                    • The time of the start of the ping of data represented by the                INT32
+                            following trace data is the Ping Time.
+                        • This timestamp is only valid for data recorded in Protocol
+                            Revision 8 and above. This field is zero in prior protocol
+                            versions.
+ 4–7                 Starting Depth (window offset) in Samples                                       UINT32
+ 8 – 11              Ping Number (increases with each ping)                                          UINT32
+ 12 – 15             Reserved                                                                        2 x INT16
+                     MSB (Most Significant Bits) High order bits to extend 16 bits unsigned
+                     short values to 20 bits. The 4MSB bits become the most significant
+                     portion of the new 20-bit value.
+                         • Bits 0 – 3: Start Frequency
+                         • Bits 4 – 7: End Frequency
+                         • Bits 8 – 11: Samples in this Packet
+                         • Bits 12 – 15: Mark Number (added in protocol version 0xA)
+ 16 – 17             The Most Significant Bits fields extend 16-bit integers to 20 bits. These       UINT16
+                     are added as needed when the range of possible values exceeds what
+                     can be stored in a 16-bit integer. The simplest way to use these
+                     additional bits is to treat the value as a 32-bit integer; the existing value
+                     becomes the least significant 16 bits, and the MSB field becomes the
+                     next most significant 4 bits with the most significant 12 bits set to
+                     zeros.
+                     (CONTINUED NEXT PAGE)
+
+                              Table 2-2: Message Type 80 Data Format Block
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                                0023492_REV_R
+                                                                                               5
+
+
+BYTE OFFSET   DESCRIPTION                                                            SIZE
+              LSB – Extended precision
+              Low-order bits for fields requiring greater precision.
+                  • Bits 0-7: Sample Interval- - Sample interval fractional
+18 – 19                                                                            UINT16
+                      component
+                  • Bits 8-15: Course- - fractional portion of the course
+              (Added in protocol version 0xB)
+              LBS2 – Extended precision
+              Low-order bits for fields requiring greater precision.
+                 • Bits 0 – 3: Speed - sub-fractional speed component (added in
+20 – 21               protocol version 0xC).                                       UINT16
+                 • Bits 4 – 13: Sweep Length in Microsecond, from 0 - 999 (added
+                      in protocol version 0xD).
+                 • Bits 14 – 15: Reserved
+22 – 27       Reserved                                                             3 x INT16
+              ID Code (always 1)
+28 – 29                                                                             INT16
+                 1 = Seismic Data
+              Validity Flag
+              Validity flags bitmap:
+                  • Bit 0: Lat Lon or XY valid
+                  • Bit 1: Course valid
+                  • Bit 2: Speed valid
+                  • Bit 3: Heading valid
+                  • Bit 4: Pressure valid
+                  • Bit 5: Pitch roll valid
+30 – 31           • Bit 6: Altitude valid                                          UINT16
+                  • Bit 7: Heave
+                  • Bit 8: Water temperature valid
+                  • Bit 9: Depth valid
+                  • Bit 10: Annotation valid
+                  • Bit 11: Cable counter valid
+                  • Bit 12: KP valid
+                  • Bit 13: Position interpolated
+                  • Bit 14: Water sound speed valid
+              Reserved
+32 - 33                                                                            UINT16
+              (CONTINUED NEXT PAGE)
+
+
+                Table 2-2: Message Type 80 Data Format Block (Continued)
+6
+
+
+ BYTE OFFSET      DESCRIPTION                                                                     SIZE
+                  Data Format
+                      0 = one short per sample - envelope data. The total number of bytes
+                  of data to follow is 2 * samples.
+                      1 = two shorts per sample - stored as real (one short), imaginary (one
+                  short). The total number of bytes of data to follow is 4 * samples.
+                      2= one short per sample - before the matched filter. The total
+ 34 - 35          number of bytes of data to follow is 2 * samples.                             INT 16
+                      9 = two shorts per sample - stored as real (one short), imaginary (one
+                  short) - before matched filtering. This is the code for unmatched
+                  filtered analytic data, whereas value 1 is intended for match filtered
+                  analytic data. The total number of bytes of data to follow is 4 * samples.
+                  NOTE: Values greater than 255 indicate that the data to follow is in an
+                  EdgeTech proprietary format.
+                  Distance from Antenna to Tow point in Centimeters.
+ 36 – 37                                                                                         INT16
+                  Sonar Aft is Positive
+                  Distance from the antenna to the tow point in centimeters.                     INT16
+ 38 – 39
+                  Sonar to Starboard is Positive.
+ 40 – 43          Reserved                                                                     2 x INT16
+                     Table 2-2: Message Type 80 Data Format Block (Continued)
+
+
+2.2.1.2 Message Type 80 Navigation Data Block
+
+ BYTE OFFSETS     DESCRIPTION                                                                     SIZE
+                  Kilometers of Pipe
+ 44 – 47                                                                                        FLOAT
+                  See VALIDITY FLAG (bytes 30 – 31).
+                  Heave in meters
+ 48 – 51          Positive value: Direction is down                                             FLOAT
+                  See VALIDITY FLAG (bytes 30 – 31).
+ 52 – 75          Reserved                                                                     12 x INT16
+                  Gap filler lateral position offset relative to sonar in meters. Offset is
+                  negative when the gap filler is port of sonar and positive when the gap
+ 76 - 79                                                                                        FLOAT
+                  filler is starboard of sonar. The longitude and latitude reported below
+                  already have this offset applied.
+                  Longitude in 10000 * (Minutes of Arc) or X in Millimeters or
+                  Decimeters. See Validity Flag (bytes 30 – 31) and Coordinate Units
+ 80 – 83          (bytes 88 - 89).                                                               INT32
+
+                  (CONTINUED NEXT PAGE)
+
+                         Table 2-3: Message Type 80 Navigation Data Block
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                          0023492_REV_R
+                                                                                                            7
+
+
+ BYTE OFFSET     DESCRIPTION                                                                       SIZE
+                 NOTE: Unless the Validity Flag Bit 13 “Position Interpolated” is set, the
+                 position stored in message 80 is the value recorded by Discover and is
+ 80 - 83                                                                                           INT32
+                 not the sonar’s position. It is the last navigation position received
+                 before pinging, and Layback is not applied.
+                 Latitude in 10000 * (Minutes of Arc) or Y in Millimeters or Decimeters.
+                 See Validity Flag (bytes 30 – 31) and Coordinate Units (bytes 88 - 89).
+
+ 84 – 87         NOTE: Unless the VALIDITY FLAG Bit 13 “Position Interpolated” is set, the         INT32
+                 position stored in message 80 is the value recorded by Discover and is
+                 not the sonar’s position. It is the last navigation position received prior
+                 to pinging, and Layback is not applied.
+                 Coordinate Units
+                   1 = X, Y in millimeters
+                   2 = Latitude, longitude in minutes of arc times 10000
+ 88 – 89           3 = X, Y in decimeters                                                          INT16
+                   4 = X, Y in centimeters
+                 NOTE: Option 4 (X, Y in centimeters) is only available in protocol
+                 versions 0x11 and above.
+                  Table 2-3: Message Type 80 Navigation Data Block (Continued)
+
+2.2.1.3 Message Type 80 Pulse Information Block
+
+ BYTE OFFSETS   DESCRIPTION                                                                      SIZE
+ 90 – 113       Annotation String (ASCII Data)                                                 24 x UINT8
+                Samples
+                NOTE: For protocol versions 0xA and above, the MSB1 field
+                should include the MSBs (Most Significant Bits) needed to
+ 114 – 115                                                                                      UINT16
+                determine the number of samples.
+                See bits 8-11 in bytes 16-17. Field MSB1 for MSBs for
+                large sample sizes.
+                Sampling Interval in Nanoseconds
+
+                NOTE: For protocol versions 0xB and above, see the LSBs field,
+ 116 – 119      which should include the fractional component needed to                         UINT32
+                determine the sample interval.
+                See bits 0-7 in bytes 18-19. Field LSB1 for LSBs for increased
+                precision.
+ 120 – 121      Gain Factor of ADC                                                              UINT16
+ 122 – 123      User Transmit Level Setting (0 – 100%).                                          INT16
+                Reserved – Do Not Use                                                            INT16
+ 124 - 125
+                (CONTINUED NEXT PAGE)
+
+                       Table 2-4: Message Type 80 Pulse Information Block
+8
+
+
+ BYTE OFFSET      DESCRIPTION                                                              SIZE
+                  Transmit Pulse Starting Frequency in daHz (decaHertz, units of
+                  10Hz).
+
+
+ 126 – 127        NOTE: For protocol versions 0xA and above, the MSB1 field               UINT16
+                  should include the MSBs (Most Significant Bits) needed to
+                  determine the starting frequency of the transmit pulse.
+                  See Bits 0-3 in bytes 16-17. Field MSB1 for MSBs for
+                  large transmit pulse.
+                  Transmit Pulse Ending Frequency in daHz (decaHertz,
+                  units of 10Hz).
+
+
+ 128 – 129        NOTE: For protocol versions 0xA and above, the MSB1 field               UINT16
+                  should include the MSBs (Most Significant Bits) needed to
+                  determine the starting frequency of the transmit pulse.
+                  See bits 4-7 in bytes 16-17. Field MSB1 for MSBs for
+                  large transmit pulse.
+                  Sweep Length in Milliseconds.
+ 130 – 131        See bytes 18-19 for LSBs (Least Significant Bits). LSB2 bits 4 - 13     UINT16
+                  contain the microsecond portion (0 - 999). LSB2 part was added
+                  in protocol version 0xD and was previously 0.
+                  Pressure in Milli PSI (1 unit = 1/1000 PSI)
+ 132 – 135                                                                                 INT32
+                  See VALIDITY FLAG (bytes 30-31)
+                  Depth in Millimeters (if not = 0)
+ 136 – 139                                                                                 INT32
+                  See VALIDITY FLAG (bytes 30-31).
+                  Sample Frequency of the Data in Hertz
+                  NOTE: For all data types, EXCEPT RAW (Data Format = 2), this is
+ 140 – 141        the sampling frequency of the data. For RAW data, this is one-          UINT16
+                  half the sample frequency of the data (FS/2). All values are
+                  modulo 65536. Use this field in conjunction with the Sample
+                  Interval (Bytes 114-115) to calculate the correct sample rate.
+ 142 – 143        Outgoing Pulse Identifier                                               UINT16
+                  Altitude in Millimeters
+ 144 – 147                                                                                 INT32
+                  A zero implies not filled. See VALIDITY FLAG (Bytes 30-31)
+                  Sound Speed in Meters per Second.
+ 148 – 151                                                                                FLOAT
+                  See VALIDITY FLAG (Byte 30-31).
+                  Mixer Frequency in Hertz
+                  For single pulse systems, this should be close to the
+ 152 – 155        center frequency.                                                       FLOAT
+                  For multi-pulse systems, this should be the approximate
+                  center frequency of the span of all the pulses.
+                  Table 2-4: Message Type 80 Pulse Information Block (Continued)
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                       0023492_REV_R
+                                                                                                      9
+
+
+2.2.1.4 Message Type 80 CPU Time Block
+
+ BYTE OFFSETS      DESCRIPTION                                                                SIZE
+                   Year Data Recorded (CPU time), e.g., 2009.
+                      • The Ping Time can also be determined from the Year, Day,
+                          Hour, Minute, and Seconds as per bytes 156 to 165. Provides 1
+                          second-level accuracy and resolution.
+                      • See Bytes 0-3. These 2-time stamps are equivalent and
+                          identical. For most purposes, this should not be used.
+ 156 – 157                                                                                    INT16
+                      • For higher resolution (milliseconds), use the Year and Day
+                          values of bytes 156 to 159, use the milliSecondsToday value of
+                          bytes 200-203 to complete the timestamp.
+                      • System time is set to UTC, regardless of the time zone. This
+                          time format is backward compatible with all older protocol
+                          revisions.
+ 158 – 159         Day (1 – 366) (should not be used)                                         INT16
+ 160 – 161         Hour (see Bytes 200-203) (should not be used)                              INT16
+ 162 – 163         Minute (should not be used)                                                INT16
+ 164 – 165         Second (should not be used)                                                INT16
+ 166 – 167         Time Basis (always 3)                                                      INT16
+                             Table 2-5: Message Type 80 CPU Time Block
+The trace data is transmitted as 16-bit integers in block floating-point format per message. This saves
+bandwidth and storage space while preserving dynamic range. The weighting factor MUST be applied to
+each of the 16-bit integer values to restore the original floating-point value.
+
+
+2.2.1.5 Message Type 80 Weighting Factor Block
+
+ BYTE OFFSETS      DESCRIPTION                                                                SIZE
+                   Weighting Factor for Block Floating Point Expansion -- defined as 2 to
+                   N Volts for LSB.
+ 168 – 169                                                                                    INT16
+                   All data MUST be scaled by 2-N, where N is the Weighting Factor.
+                   (See EQUATION 2-2-1)
+ 170 – 171         Number of Pulses in the Water                                              INT16
+                          Table 2-6: Message Type 80 Weighting Factor Block
+Each of the data samples then needs to be scaled by the weighting factor, N, according to the equation
+below:
+
+                             𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆𝑆 = 𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷𝐷 × 2−𝑁𝑁
+                                                 Equation 2-2-1
+10
+
+
+2.2.1.6 Message Type 80 Orientation Sensor Data Block
+The following Compass Heading, Pitch, and Roll fields contain useful information about the sonar's
+attitude.
+
+ BYTE OFFSETS       DESCRIPTION                                                                SIZE
+                    Compass Heading (0 to 359.99) in units of 1/100 Degree.
+                    See VALIDITY FLAG (bytes 30-31).
+ 172 – 173          The Compass heading is the magnetic heading of the towfish. If a Gyro     UINT16
+                    sensor is properly interfaced with the Discover Topside Acquisition
+                    Unit with a valid NMEA HDT message, this field will contain the Gyro
+                    heading relative to True North.
+                    Pitch [(degrees / 180.0) * 32768.0] maximum resolution.
+ 174 – 175          Positive values indicate bow up.                                          INT16
+                    See VALIDITY FLAG (bytes 30-31).
+                    Roll [(degrees / 180.0) * 32768.0] maximum resolution.
+ 176 – 177          Positive values indicate port up.                                         INT16
+                    See VALIDITY FLAG (bytes 30-31).
+ 178 – 179          Reserved                                                                  INT16
+
+                       Table 2-7: Message Type 80 Orientation Sensor Data Block
+
+
+2.2.1.7 Message Type 80 Trigger Information Block
+Also, the trigger source is determined from this block.
+
+ BYTE OFFSETS       DESCRIPTION                                                                SIZE
+ 180 – 181          Reserved                                                                  INT16
+                    Trigger Source
+                      0 = Internal
+ 182 – 183                                                                                    INT16
+                      1 = External
+                      2 = Coupled
+                    Mark Number
+                     0 = No Mark
+ 184 – 185                                                                                    UINT16
+                    See bytes 16 –17 fields MSB1 for MSBs (Most Significant Bits) for large
+                    values (> 655350).
+
+                          Table 2-8: Message Type 80 Trigger Information Block
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                         0023492_REV_R
+                                                                                                                 11
+
+
+2.2.1.8 Message Type 80 NMEA Navigation Data Block
+The following Position Fix Hour, Position Fix Minutes, and Position Fix Seconds fields (bytes 186-193)
+contain the time of the last position fix. If bit 13 is set (i.e., position interpolated) in the VALIDITY FLAG (byte
+30-31), this will be the same as the CPU and ping time.
+
+ BYTE OFFSETS         DESCRIPTION                                                                         SIZE
+                      Position Fix Hour (0 – 23)
+ 186 – 187                                                                                               INT16
+                      NOTE: The NAV time is the time of the latitude and longitude fix.
+                      Position Fix Minutes (0 – 59)
+ 188 – 189                                                                                               INT16
+                      NOTE: The NAV time is the time of the latitude and longitude fix.
+                      Position Fix Seconds (0 – 59)
+ 190 – 191                                                                                               INT16
+                      NOTE: The NAV time is the time of the latitude and longitude fix.
+                      Course in Degrees (0 to 359.9)
+                      Starting with the protocol version, 0x0C, two digits of fractional
+ 192 – 193                                                                                               INT16
+                      degrees are stored in LSB1. The fractional portion is in LSBs (Least
+                      Significant Bits). See bytes 18 – 19.
+                      Speed – in Tenths of a Knot
+                      Starting with protocol version 0x0C, one additional digit of fractional
+ 194 – 195                                                                                               INT16
+                      knot (1/100) is stored in LSB2. See LSB2 (bytes 20 -21) for an additional
+                      fractional digit.
+ 196 – 197            Position Fix Day (1 – 366)                                                         INT16
+ 198 – 199            Position Fix Year                                                                  INT16
+                          Table 2-9: Message Type 80 NMEA Navigation Data Block
+2.2.1.9 Message Type 80 Miscellaneous Data Block
+ BYTE OFFSETS         DESCRIPTION                                                                         SIZE
+                      Milliseconds Today (Since Midnight)
+ 200 – 203            Use with seconds since 1970 to get time to the milliseconds (time of              UINT32
+                      Ping).
+ 204 – 205            Maximum Absolute Value of ADC Samples in this Packet                              UINT16
+ 206 – 207            Reserved                                                                           INT16
+ 208 – 209            Reserved                                                                           INT16
+ 210 – 215            Sonar Software Version Number - ASCII                                             6 x INT8
+                      Initial Spherical Correction Factor in Samples times 100.
+ 216 – 219                                                                                               INT32
+                      A value of -1 indicates that the spherical spreading is disabled.
+                      Packet Number
+ 220 – 221            Each ping starts with packet 1                                                    UINT16
+                      (CONTINUED NEXT PAGE)
+                           Table 2-10: Message Type 80 Miscellaneous Data Block
+12
+
+
+ BYTE OFFSET        DESCRIPTION                                                                    SIZE
+ 222 – 223          ADC Decimation * 100 times                                                    INT16
+ 224 – 225          Reserved                                                                      INT16
+                    Water Temperature in Units of 1/10 Degree C.
+ 226 – 227                                                                                        INT16
+                    See VALIDITY FLAG (bytes 30-31).
+                    Layback
+ 228 – 231                                                                                        FLOAT
+                    Distance to the sonar in meters.
+ 232 – 235          Reserved                                                                      INT32
+                    Cable Out in Decimeters
+ 236 – 237                                                                                        UINT16
+                    See VALIDITY FLAG (bytes 30-31).
+ 238 – 239          Reserved                                                                      UINT16
+                   Table 2-10: Message Type 80 Miscellaneous Data Block (Continued)
+Sonar trace data follows the 240-byte header and consists of 16-bit integer values. The number of integers
+to be read is found by multiplying the number of samples in the trace (bytes 114-115) by the number of
+integers per sample for the data type used (1 or 2). Furthermore, doubling this yields the byte size of the
+data section. This should match the preceding Message Header byte count (bytes 12 –15) less the header
+size of 240.
+
+2.3 Other Messages
+There are other messages contained within the JSF file other than acoustic records. For example, there
+are system and timestamp information messages. In addition, sometimes, a padding message is also
+included. These structures are defined in the following subsections.
+
+2.3.1 Message Type 40: Sonar Message Status
+  BYTE OFFSETS      DESCRIPTION                                                                    SIZE
+  0-3               overflowCount                                                                 UINT32
+  4-7               errorCount                                                                    UINT32
+  8-27              lastError[10]. Error IDs of the last ten errors                              10xINT16
+  28-31             freeDiskSpace. Disk space available for sonar data storage in kb.             UINT32
+                    dataAcquisitionActivityIndicator. Indicates that data is being received
+  32-35                                                                                           UINT32
+                    (increments over time).
+                    serviceNeeded. General service warning message. This is a bit map
+  36                with one bit for each power on self-test status.                              UINT8
+                    (CONTINUED NEXT PAGE)
+
+                          Table 2-11: Message Type 40: Sonar Message Status
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                             0023492_REV_R
+                                                                                               13
+
+
+
+BYTE OFFSET      DESCRIPTION                                                           SIZE
+                 •   A non-zero bit indicates a POST test failure.
+                 •   Bit 0: SB Power Amp feedback on channel 0 test failed.
+                 •   Bit 1: SB Power Amp feedback on secondary channel (1) test
+                     failed.
+36               •   Bit 2: Interface Card diagnostic failed.
+                 •   Bit 3: Health Monitor Sensors (formerly the 48 Volt Power        UINT8
+(Continued)
+                     Check)
+                 •   Bit 4: Reserved
+                 •   Bit 5: Internal Configuration Error (Missing Pulse File, etc.)
+                 •   Bit 6: Reserved
+                 •   Bit 7: Reserved
+37-38         Reserved                                                                2xUINT8
+              storageFlags. Storage subsystem flags
+                  • Bit 0: Disk storage is enabled (should be set when on).
+39                • Bit 1: Disk primary drive error detected. The operator needs      UINT8
+                     to reset.
+                  • Bit 2: Disk write error on the drive - all storage disabled.
+                  • Bit 7: Disk playback is enabled.
+              temperatureStatus. Ambient Temperature Status
+                  • Bit 0: Temperature is OK
+                  • Bit 1: Temperature is in error - below the minimum possible
+                     value.
+40                • Bit 2: Temperature is below the recommended value.                UINT8
+                  • Bit 3: Temperature is above the recommended value.
+                  • Bit 4: Temperature is too high - PINGING IS DISABLED.
+                  • Bit 5: Temperature is in error - above the maximum possible
+                     value.
+              timeStatus. Status of time synchronization
+                  • Bits 0-3: Source for time sync. See TIMESYNCSENTENCETYPE
+                     belows for values.
+41                • Bits 4-6: Status of time sync. See TIMESYNCSTATUSENUMTYPE         UINT8
+                     below.
+                  • 7: If a PPS is enabled but either not active or not at the
+                     expected pulse per second rate
+42-43         Reserved                                                                UINT16
+44-47         bottleTemperature.Bottle temperature in Degrees C * 1000.                INT32
+              ambientTemperature. Ambient temperatures in Degrees C*1000
+48-51                                                                                  INT32
+              (CONTINUED NEXT PAGE)
+
+              Table 2-11: Message Type 40: Sonar Message Status (Continued)
+14
+
+
+
+  BYTE OFFSET       DESCRIPTION                                                                 SIZE
+  52-55             power48Volts. Check of 48 Volt Power in millivolts.                        INT32
+
+  56-59             Reserved                                                                   INT32
+  60-67             lowRateIO[4]. Low rate misc IO analog values.                             4xINT16
+                    serialPortState[8]. Serial Port Summary Status. There are 4 bits for
+                    each of up to 16 ports. Each 4-bit value indicates the state of the
+  68-75                                                                                       8xUINT8
+                    port, which can be any of the values listed in
+                    SERIALPORTSTATEENUMTYPE.
+                    runtimeAlerts. Runtime alert bits. See SONARALERTENUMTYPE for
+  76-79                                                                                        INT32
+                    symbolic bit defines.
+  80 - 99           Reserved                                                                  5xINT32
+
+                   Table 2-11: Message Type 40: Sonar Message Status (Continued)
+2.3.1.1 TimeSyncSentenceType
+Defines for reporting of timeStatus field in the SonarMessageStatusType (4 LSBs)
+
+  VALUE                DESCRIPTION
+  0                    None
+  1                    Internal Real Time Clock
+  2                    Network no PPS
+  3                    Network with PPS
+  4                    NMEA ZDA
+  5                    NMEA RMC
+  6                    NMEA GGA
+  7                    NMEA GLL
+  8                    NMEA GGK
+  9                    NMEA like PIXSE,TIME__
+  10                   Phins Binary NAV
+  11                   NMEA like ETC
+  12                   POSMV Binary
+  13                   LNAV UTC from SonarDyne
+  14                   SBG Ekinox / Apogee
+  15                   Sonar Dyne HNAV
+
+               Table 2-12: Message 40 TimeSyncSentenceType Enumeration Descriptions
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                          0023492_REV_R
+                                                                                                     15
+
+
+2.3.1.2 TimeSyncStatusEnumType
+
+  VALUE             DESCRIPTION
+  0                 Good sync : within 50 ms if 1 PPS inactive
+
+  1                 Fair sync : within 300 ms if 1 PPS inactive
+
+  2                 Marginal sync : within 1 second
+
+  3                 Poor sync : 1 second or greater
+
+  7                 Failed time sync : no source or large errors
+
+           Table 2-13: Message 40 TimeSyncStatusEnumType Enumeration Descriptions
+
+
+2.3.1.3 SerialPortStateEnumType
+
+  VALUE             DESCRIPTION
+  0                 Port is not configured for I/O (inactive).
+
+  1                 Active and normal operation.
+
+  2                 Authorization failure.
+
+  3                 Port error (e.g. open failed - physical port does not exist)
+
+  4                 Port inactive (no data being received on port)
+
+  5                 No valid data - bytes are being received but does not parse.
+                    Too much data - port idle percent of time is less than the specified amount
+  6                 (MinIdlePercent keyword value in SonarSerial.ini file). Could be caused by too
+                    low a baud rate setting.
+  7                 Parse errors.
+
+  8                 Configuration error.
+
+  9                 No connection (applies to TCP/UDP based ports).
+
+  10                Attempting to open port.
+
+  11                Open failed - port is in use or does not exist.
+
+  12                Port disabled.
+                    Time of receipt differs from time in the message - (Difference of more than 1
+  13
+                    seconds).
+            Table 2-14: Message 40 SerialPortStateEnumType Enumeration Descriptions
+16
+
+
+2.3.1.4 SonarAlertEnumType
+Sonar Runtime alert defines. Referenced in SonarMessageStatusType.runtimeAlerts.
+
+  VALUE               DESCRIPTION
+  0                   Cannot find sonar acquisition device
+
+  1                   No network connection.
+
+  2                   Password expired.
+
+  3                   Data recording file error.
+
+  4                   Serial port error.
+
+  5                   Time sync not active, or time error excessive (exceeds 200 ms).
+
+  6                   System is out of the water; ping rate limits being applied.
+
+  7                   One PPS Trigger in Event not active or at wrong rate.
+
+  8                   Container Message received with non-recent time stamp.
+
+  9                   Power Amp Fault Detected (e.g., over current or another event).
+
+  10                  CRC Fault
+                      Electronics Hot. When hot the amp enables will be disabled to minimize
+  11
+                      overheating - so not useful data will be received.
+                      SSL Preamp sense indicates a wiring error, amp enables will be disabled to
+  12
+                      prevent damage - no useful data will be received.
+                      SSH Preamp sense indicates a wiring error, amp enables will be disabled to
+  13
+                      prevent damage - no useful data will be received.
+  14                  No bathymetry calibration file.
+
+  15                  Sonar configuration error.
+                      No One PPS but UDP / TCP based input device. See
+  16
+                      warnIfUdpOrTcpButNoOnePPS in Sonar.txt file.
+  17                  Serial Port Time in Message Inconsistent with Time of Receipt
+
+  18                  Network queue message dropped
+
+               Table 2-15: Message 40 SonarAlertEnumType Enumeration Descriptions
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                       0023492_REV_R
+                                                                                                    17
+
+
+2.3.2 Message Type 181: Navigation Offsets
+ BYTE OFFSETS     DESCRIPTION                                                             SIZE
+ 0-3              X offset in meters                                                      FLOAT
+ 4-7              Y offset in meters                                                      FLOAT
+ 8-11             Latitude Offset in degrees                                              FLOAT
+ 12-15            Longitude Offset in degrees                                             FLOAT
+ 16-19            Aft Offset in meters: Forward is negative                               FLOAT
+ 20-23            Starboard Offset in meters: Port is negative                            FLOAT
+ 24-27            Depth Offset in meters: Up is negative                                  FLOAT
+ 28-31            Altitude Offset in meters: Down is negative                             FLOAT
+ 32-35            Heading Offset in degrees                                               FLOAT
+ 36-39            Pitch Offset in degrees: Nose up is positive                            FLOAT
+ 40-43            Roll Offset in degrees: Port side up is positive                        FLOAT
+ 44-47            Yaw Offset in degrees: Toward Port is negative                          FLOAT
+ 48-51            Tow point elevation offset (Up is positive)                             FLOAT
+ 52-63            Reserved [3]                                                            FLOAT
+
+                           Table 2-16: Message Type 181: Navigation Offsets
+
+2.3.3 Message Type 182: System Information
+The system information message contains details of the system used to acquire data. This message is
+normally present at the beginning of a JSF file and may be repeated if configuration parameters change.
+
+ BYTE OFFSETS      DESCRIPTION                                                             SIZE
+ 0–3               System Type                                                             INT32
+ 4–7               Low Rate I/O Enabled Option (0 = disabled)                              INT32
+ 8 – 11            Version Number of Sonar software used to generate data                  INT32
+ 12 – 15           Number of Subsystems Present in this Message                            INT32
+ 16 – 19           Number of Serial Port Devices Present in this Message                   INT32
+ 20 – 23           Serial Number of Tow Vehicle used to Collect Data                       INT32
+ 24 – End          Reserved
+                          Table 2-17: Message Type 182 System Information
+The System Information Message size is subject to change, as more detailed information may be added
+in future software versions. The byte count in the message header should be used to determine the
+structure's total size and jump over to the next message in the file.
+18
+
+
+2.3.4 Message Type 1260: Target File Data
+A target file data message includes the information for a target that has been saved from the Target Logger
+interface. An information header for the target file data is provided in the following format. Directly after
+the header data, the file data follows in byte format to form the JPEG file of the target image.
+
+ BYTE OFFSETS        DESCRIPTION                                                                   SIZE
+ 0–3                 Time in Seconds since 1/1/1970                                               INT32
+ 4–7                 Milliseconds in the Current Second                                           INT32
+ 8 – 11              Center Ping number                                                          UINT32
+ 12                  Subsystem ID                                                                 UINT8
+ 13                  Channel Number                                                               UINT8
+ 14-15               Coordinate Units                                                             INT16
+                       1 = X, Y in millimeters
+                       2 = Latitude, longitude in minutes of arc times 10000
+                       3 = X, Y in decimeters
+                       4 = X, Y in centimeters
+                     NOTE: Option 4 (X, Y in centimeters) is only available in protocol
+                     versions 0x11 and above.
+ 16 – 19             Longitude (X value)                                                          FLOAT
+ 20 – 23             Latitude (Y values)                                                          FLOAT
+ 24-27               Altitude in meters                                                           FLOAT
+ 28-31               Course in degrees                                                            FLOAT
+ 32-35               Heading in degrees                                                           FLOAT
+ 36-39               Slant range in meters                                                        FLOAT
+ 40-43               Length of target in meters                                                   FLOAT
+ 44-47               Width of the target in meters                                                FLOAT
+ 48-51               Height of target in meters                                                   FLOAT
+ 52-53               Target File version number                                                  UINT16
+ 54-55               Reserved                                                                    INT8x2
+ 56-59               X offset in meters                                                           FLOAT
+ 60-63               Y offset in meters                                                           FLOAT
+ 64-67               Latitude offset in degrees                                                   FLOAT
+ 68-71               Longitude offset in degrees                                                  FLOAT
+ 72-75               Depth offset in meters (Down is positive)                                    FLOAT
+ 76-79               Heading offset in degrees                                                    FLOAT
+ 80-83               Pitch offset in degrees (Nose up is positive)                                FLOAT
+                     (CONTINUED NEXT PAGE)
+                             Table 2-18: Message Type 1260: Target File Data
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                            0023492_REV_R
+                                                                                                         19
+
+
+ BYTE OFFSETS       DESCRIPTION                                                              SIZE
+ 84-87              Roll offset in degrees (Port side up is positive)                        FLOAT
+ 88-91              Aft offset in meters                                                     FLOAT
+ 92-95              Starboard offset in meters                                               FLOAT
+ 96-135             Target Name                                                              INT8x40
+ 136-175            Tag label                                                                INT8x40
+ 176-303            Description of a target from operator input                              INT8x128
+ 304-815            Full path of target file name                                            INT8x512
+ 815-819            Target image size in bytes (size of the JPEG target data)                UINT32
+ 820-823            Reserved                                                                 Uint8x4
+                      Table 2-18 Message Type 1260: Target File Data (Continued)
+
+Target image data follows this header. The data consists of 8-bit unsigned values. When saved, it will
+create a JPEG file. The size of this file in bytes is found in the header bytes 815-819.
+
+2.4 Auxiliary Messages
+The JSF file may also contain auxiliary data messages from various sensors, depending on the
+configuration. These auxiliary messages are not limited to NMEA strings, attitude records, pressure
+readings, Doppler Velocity Log (DVL) data, cable counter data, kilometers of pipe information, and
+container messages. These data blocks are described in the subsections below.
+
+2.4.1 Message Type 2002: NMEA String
+An NMEA string consists of a timestamp followed by an ASCII string as read from a GPS, Gyro, or another
+device. Each message is a single string, excluding the <CR>/<LF>.
+
+ BYTE OFFSETS       DESCRIPTION                                                                  SIZE
+ 0–3                Time in Seconds since 1/1/1970                                              INT32
+ 4–7                Milliseconds in the Current Second                                          INT32
+                    Source
+                      1 = Sonar
+ 8                                                                                              UINT8
+                      2 = Discover
+                      3 = ETSI
+ 9 – 11             Reserved                                                                  3 x UINT8
+                                                                                             Remaining
+ 12 – to Message
+                    NMEA String Data                                                          Length x
+ Length
+                                                                                                INT8
+                                Table 2-19: Message Type 2002 NMEA String
+20
+
+
+2.4.2 Message Type 2020: Pitch Roll Data
+A pitch roll message consists of a single reading from a pitch roll sensor such as a Seatex MRU, TSS, or
+OCTANS device. Not all devices provide all data for the defined structure. Use the Validity Flags to
+determine which fields are populated.
+
+ BYTE OFFSETS       DESCRIPTION                                                                    SIZE
+ 0–3                Time in Seconds since 1/1/1970                                                INT32
+ 4–7                Milliseconds in the Current Second                                            INT32
+ 8 – 11             Reserved – Do Not Use                                                        4 x UINT8
+ 12 – 13            Acceleration in X. Multiply by (20 * 1.5) / (32768) to get Gs                 INT16
+ 14 – 15            Acceleration in Y. Multiply by (20 * 1.5) / (32768) to get Gs                 INT16
+ 16 – 17            Acceleration in Z. Multiply by (20 * 1.5) / (32768) to get Gs                 INT16
+ 18 – 19            Rate Gyro in X. Multiply by (500 * 1.5) / (32768) to get Degrees/Sec          INT16
+ 20 – 21            Rate Gyro in Y. Multiply by (500 * 1.5) / (32768) to get Degrees/Sec          INT16
+ 22 – 23            Rate Gyro in Z.Multiply by (500 * 1.5) / (32768) to get Degrees/Sec           INT16
+ 24 – 25            Pitch. Multiply by (180.0 / 32768.0) to get Degrees. Bow up is positive.      INT16
+ 26 – 27            Roll: Multiply by (180.0 / 32768.0) to get Degrees. Port up is positive       INT16
+ 28 – 29            Temperature in Units of 1/10 of a Degree Celsius                              INT16
+                    Device-specific info. This is device-specific info provided for diagnostic
+ 30 – 31                                                                                          UINT16
+                    purposes.
+ 32 – 33            Estimated Heave in Millimeters. Positive is down.                             INT16
+ 34 – 35            Heading in units of 0.01 Degrees (0…360)                                      UINT16
+                    Data Validity Flags
+                       • Bit 0: Ax
+                       • Bit 1: Ay
+                       • Bit 2: Az
+                       • Bit 3: Rx
+                       • Bit 4: Ry
+                       • Bit 5: Rz
+ 36 – 39                                                                                          INT32
+                       • Bit 6: Pitch
+                       • Bit 7: Roll
+                       • Bit 8: Heave
+                       • Bit 9: Heading
+                       • Bit 10: Temperature
+                       • Bit 11: Device Info
+                       • Bit 12: Yaw
+ 40 – 41            Yaw in units of 0.01 Degrees (0…360)                                          INT16
+ 42 – 43            Reserved                                                                      INT16
+                                Table 2-20: Message Type 2020 Pitch Roll
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                             0023492_REV_R
+                                                                                                          21
+
+
+2.4.3 Message Type 2060: Pressure Sensor Reading
+This message exists in the data stream if a pressure sensor is installed on the sonar system. While pressure
+sensors may be configured in different units, the default is PSI absolute. Use the Validity Flags to
+determine which fields are populated.
+
+ BYTE OFFSETS       DESCRIPTION                                                                    SIZE
+ 0–3                Time in Seconds since 1/1/1970                                                INT32
+ 4–7                Milliseconds in the Current Second                                            INT32
+ 8 – 11             Reserved – Do Not Use                                                       4 x UINT8
+ 12 – 15            Pressure in Units of 1/1000th of a PSI                                        INT32
+ 16 – 19            Temperature in Units of 1/1000th of a Degree Celsius.                         INT32
+ 20 – 23            Salinity in Parts Per Million                                                 INT32
+                    Validity Data Flag:
+                        • Bit 0: Pressure
+                        • Bit 1: Temperature
+ 24 – 27                • Bit 2: Salt PPM                                                         INT32
+                        • Bit 3: Conductivity
+                        • Bit 4: Sound velocity
+                        • Bit 5: Depth
+ 28 – 31            Conductivity in Micro-Siemens per Centimeter                                  INT32
+ 32 – 35            Velocity of Sound in Millimeters per Second                                   INT32
+ 36 – 39            Depth in Meters                                                               INT32
+ 40 – 75            Reserved                                                                    9 x INT 32
+
+                             Table 2-21: Message Type 2060 Pressure Sensor
+
+2.4.4 Message Type 2071: Reflection Coefficient
+The reflection coefficient message contains details used in the reflection coefficient calculation. There is
+one 2071 message per ping at most. If the sonar is in dual alternating pulse mode (noted in the standard
+JSF field’s CHANNEL FIELD), each ping for each channel of JSF data gets its own reflection coefficient
+identified via that channel field.
+
+EdgeTech recommends smoothing the reflection coefficient values because they can be noisy. The values
+reported in 2071 are unaveraged, giving full control of the averaging scheme to whatever is processing
+the JSF downstream.
+22
+
+
+
+ BYTE OFFSETS        DESCRIPTION                                                                     SIZE
+ 0–3                 Time in Seconds since 1/1/1970                                                 INT32
+ 4–7                 Milliseconds in the Current Second                                             INT32
+ 8 - 11              Reserved-Do not use                                                          4 x UINT8
+                     pingNumber. The ping number for which the reflection coefficient was
+ 12 - 15             computed. Use with the subsystem, channel, and timestamp                       UINT32
+                     unambiguously associated with a ping.
+                     reflectionCoefficientDecibels. The reflection coefficient in decibels.
+ 16 - 19                                                                                            FLOAT
+                     Good values are between 0 and -40.
+                     altitudeMilliseconds. Altitude in milliseconds where the reflection
+ 20 - 23                                                                                            FLOAT
+                     coefficient was computed.
+                     calibrationGainDecibels. Pulse calibration gain in decibels applied to
+ 24 - 27                                                                                            FLOAT
+                     sonar samples before reflection coefficient calculation.
+                     calibrationReferenceDecibels. The calibration “zero-point’ in decibels.
+ 28 - 31             This value was subtracted from the computer reflection coefficient             FLOAT
+                     value to get the value reported in the reflection coefficient (bytes 4-7).
+ 32 - End            Reserved                                                                       UINT32
+
+                           Table 2-22: Message Type 2071 Reflection Coefficient
+
+2.4.5 Message Type 2080: Doppler Velocity Log Data (DVL)
+This is data from a DVL (if fitted) and often includes velocity and altitude readings. Use the Validity Flag to
+determine which fields are populated.
+
+ BYTE OFFSETS        DESCRIPTION                                                                  SIZE
+ 0–3                 Time in Seconds since 1/1/1970                                               INT32
+ 4–7                 Milliseconds in the Current Second                                           INT32
+ 8 – 11              Reserved                                                                     4 x UINT8
+                     Validity Data Flags:
+                         • Bit 0: X, Y Velocity Present
+                         • Bit 1: 0 = Earth Coordinates, 1= Ship coordinates
+                         • Bit 2: Z (Vertical Velocity) Present
+                         • Bit 3: X, Y Water Velocity Present
+                         • Bit 4: Z (Vertical Water Velocity) Present                       UINT32
+ 12 – 15
+                         • Bit 5: Distance to Bottom Present
+                         • Bit 6: Heading Present
+                         • Bit 7: Pitch Present
+                         • Bit 8: Roll Present
+                         • Bit 9: Temperature Present
+                         • Bit 10: Depth Present                      (CONTINUED NEXT PAGE)
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                             0023492_REV_R
+                                                                                                         23
+
+
+
+ BYTE OFFSETS       DESCRIPTION                                                              SIZE
+                        •   Bit 11: Salinity Present
+                        •   Bit 12: Sound Velocity Present
+                        •   Bit 31: Error Detected
+                        •   Rest: Reserved, Presently 0
+                    Four Integers: distance to bottom in centimeters for up to 4 beams.
+ 16 – 31                                                                                     4 x INT32
+                    A value of 0 indicates an invalid or non-existing reading.
+                    X Velocity with Respect to the Bottom in millimeters per second.
+ 32-33                                                                                       INT16
+                    A positive value indicates Starboard or East.
+                    Y Velocity with Respect to the Bottom in millimeters per second.
+ 34 – 35                                                                                     INT16
+                    A positive value indicates Forward or North.
+                    Z Vertical Velocity with Respect to the Bottom in millimeters per
+ 36 – 37            second.                                                           INT16
+                    A positive value indicates Upward.
+                    X Velocity with respect to a water layer in millimeters per second.
+ 38 – 39                                                                                     INT16
+                    A positive value indicates Starboard or East.
+                    Y Velocity with respect to a water layer in millimeters per second.
+ 40 – 41                                                                                     INT16
+                    A positive value indicates Forward or North.
+                    Z Vertical Velocity with respect to a water layer in millimeters per
+ 42 – 43                                                                                 INT16
+                    second. A positive value indicates Upward.
+ 44 – 45            Depth from Depth Sensor in Decimeters                                    UINT16
+                    Pitch in units of 0.01 of a Degree (-180 to +180).
+ 46 – 47                                                                                     INT16
+                    A positive value is Bow Up.
+                    Roll in units of 0.01 of a Degree (-180 to +180).
+ 48 – 49                                                                                     INT16
+                    A positive value is Port Up.
+ 50 – 51            Heading in units of 0.01 of a Degree (0 to 360)                          UINT16
+ 52 – 53            Salinity in 1 Part Per Thousand                                          UINT16
+ 54 – 55            Temperature in units of 1/100 of a degree Celsius                        INT16
+ 56 – 57            Sound Velocity in Meters per Second                                      INT16
+ 58 – 71            Reserved                                                                 7 x INT16
+
+                                  Table 2-23: Message Type 2080 DVL
+
+2.4.6 Message Type 2091: Situation Comprehensive Message (Version 2)
+This message contains a device header followed by a data block. The data block is a composite of several
+motion/position sensors. Use the Validity Flags to determine which fields are populated. The detailed data
+structure is shown below:
+24
+
+
+ BYTE OFFSETS     DESCRIPTION                                                               SIZE
+ 0–3              Time in Seconds since 1/1/1970                                           INT32
+ 4–7              Milliseconds in the Current Second                                       INT32
+ 8 – 11           Reserved                                                                4 x UINT8
+                  Validity Flag:
+                      • Bit 0: Timestamp Provided by the Source Valid
+                      • Bit 1: Longitude Valid
+                      • Bit 2: Latitude Valid
+                      • Bit 3: Depth Valid
+                      • Bit 4: Altitude Valid
+                      • Bit 5: Heave Valid
+ 12 – 15              • Bit 6: Velocity 1 & 2 Valid                                        UINT32
+                      • Bit 7: Velocity down Valid
+                      • Bit 8: Pitch Valid
+                      • Bit 9: Roll Valid
+                      • Bit 10: Heading Valid
+                      • Bit 11: Sound Speed Valid
+                      • Bit 12: Water Temperature Valid
+                      • Others: Reserved, Presently 0.
+                  Velocity12 Directions (Velocity1 and Velocity2 Types):
+                    0 = North and East,
+ 16                                                                                         BYTE
+                    1 = Forward and Starboard,
+                    2 = +45 Degrees Rotated from Forward.
+ 17 – 19          Reserved                                                                3 x BYTE
+                  Timestamp (0.01 of a microsecond) .Microsecond since 12:00:00 AM GST,
+ 20 – 27                                                                                   UINT64
+                  January 1, 1970. To get seconds since 1970, divide by 1e7)
+ 28 – 35          Latitude in Degrees (North is Positive)                                 DOUBLE
+ 36 – 43          Longitude in Degrees (East is Positive)                                 DOUBLE
+ 44 – 47          Depth in Meters (Below Water Surface)                                    FLOAT
+ 48 – 51          Altitude in Meters (Above Seafloor)                                      FLOAT
+ 52 – 55          Heave in Meter (Positive is Down)                                        FLOAT
+ 56 – 59          Velocity1 in Meters per Second (North Velocity or Forward)               FLOAT
+ 60 – 63          Velocity2 in Meters per Second (East Velocity or Starboard)              FLOAT
+ 64 – 67          Velocity Down in Meters per Second (Down Velocity)                       FLOAT
+ 68 – 71          Pitch in Degrees (Bow up is Positive)                                    FLOAT
+ 72 – 75          Roll in Degrees (Port is Positive)                                       FLOAT
+ 76 – 79          Heading in Degrees (0 to 359.9)                                          FLOAT
+ 80 – 83          Sound Speed in Meters per Second                                         FLOAT
+ 84 – 87          Water Temperature (in Degrees Celsius)                                   FLOAT
+ 88 – 99          Reserved                                                                3 x FLOAT
+
+                      Table 2-24: Message Type 2091 Situation Comprehensive
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                     0023492_REV_R
+                                                                                                     25
+
+
+2.4.7 Message Type 2100: Cable Counter Data Message
+The cable counter data message is defined by the table below.
+
+ BYTE OFFSET        DESCRIPTION                                                               SIZE
+ 0–3                Time in Seconds since 1/1/1970                                           INT32
+ 4–7                Milliseconds in the Current Second                                       INT32
+ 8 – 11             Reserved – Do Not Use                                                  4 x UINT8
+ 12 – 15            Cable Length in Meters                                                   FLOAT
+ 16 – 19            Cable Speed in Meters per Second                                         FLOAT
+ 20 – 21            Cable Length Valid Flag (0 – Invalid)                                    INT16
+ 22 – 23            Cable Speed Valid Flag (0 – Invalid)                                     INT16
+ 24 – 25            Cable Counter Error (0 – No Error)                                       INT16
+ 26 – 27            Cable Tension Valid Flag (0 – Invalid)                                   INT16
+ 28 – 31            Cable Tension in Kilograms                                               FLOAT
+                             Table 2-25: Message Type 2100 Cable Counter
+
+2.4.8 Message Type 2101: Kilometer of Pipe Data
+The kilometer of pipe data message is as follows:
+
+ BYTE OFFSET        DESCRIPTION                                                               SIZE
+ 0–3                Time in Seconds since 1/1/1970                                           INT32
+ 4–7                Milliseconds in the Current Second                                       INT32
+                    Source
+                      1 = Sonar
+ 8                                                                                            BYTE
+                      2 = DISCOVER
+                      3 = ETSI
+ 9 – 11             Reserved                                                                3 x BYTE
+ 12 – 15            Kilometer of Pipe (KP)                                                   FLOAT
+ 16 – 17            Flag (Valid KP Value)                                                    INT16
+ 18 – 19            Flag (KP Report Error)                                                   INT16
+                           Table 2-26: Message Type 2101 Kilometer of Pipe
+
+2.4.9 Message Type 2111: Container Timestamp Message
+External entities may generate some messages contained within the JSF file that are passed to the
+recording system in a message called a Container Message. These messages are only checked to see if
+their length matches what is specified in the message header; no other type of validation is performed.
+Essentially, this message contains the receipt timestamp of the container message and should always
+precede the other desired message (e.g., 2111, then 2060).
+26
+
+
+ BYTE OFFSET     DESCRIPTION                                                                     SIZE
+ 0–3             Time in Seconds since 1/1/1970                                                 INT32
+ 4–7             Milliseconds in the Current Second                                             INT32
+ 8 - 11          Reserved                                                                     4xUINT8
+                               Table 2-27: Message Type 2111 Container
+
+2.5 Bathymetric Messages
+The JSF file has been extended to support data produced by EdgeTech’s bathymetric systems and
+products. These new extensions, called Bathymetric Data Messages, consist of the 300X family of
+messages used for the time-stamped bathymetric data and supporting information such as position,
+motion, heading, etc. This document describes this set of messages and defines the essential calculations
+used by the bathymetry system.
+
+Please note that in October 2015, the 3005, or StatusMessageType, message was added to the JSF data
+stream to incorporate RTK Tide and GPS status information. Please see 2.5.6 MESSAGE TYPE 3005:
+STATUSMESSAGETYPE for more information.
+
+2.5.1 Message Type 3000: Bathymetric Data Message
+Message ID: 3000
+
+BathymetricDataMessageType is a source for bathymetry data.
+
+Message 3000 is the primary message sent from the bathymetry system. Each ping has one message for
+the port side and one for the starboard side. This message contains the time delay, angle, and amplitude
+of each assumed seafloor echo. Multiple messages of this type are interspersed throughout the data file
+or data stream. This message consists of a header, followed by the number of bathymetric samples
+(numberOfSamples), one corresponding to each sounding point.
+
+2.5.1.1 Header Description
+Use this data to derive the raw X and Z data samples before any motion correction. The header contains
+information static to each ping as follows:
+
+ BYTE OFFSET        DATA FIELD DESCRIPTION              UNITS                                   SIZE
+ 0-3                Time Since 1/1/1970                 Seconds                               UINT32
+ 4-7                Nanosecond Supplement to Time       Nanoseconds                           UINT32
+ 8-11               Ping Number                                                               UINT32
+                    Number                       of
+ 12-13                                                                                        UINT16
+                    BathymetricSampleType Entries
+ 14                 Channel (0 – port, 1 – starboard)                                           Byte
+                    Algorithm Type
+ 15                                                                                             Byte
+                    (CONTINUED NEXT PAGE)
+
+                                     Table 2-28: Header Description
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                        0023492_REV_R
+                                                                                                         27
+
+
+ BYTE OFFSET         DATA FIELD DESCRIPTION                UNITS                                  SIZE
+ 16                  Number of Pulses                                                            Byte
+ 17                  Pulse Phase                                                                 Byte
+ 18-19               Pulse Length                          Microseconds                         UINT16
+ 20-23               Transmit Pulse Amplitude (0 to 1)                                           FLOAT
+ 24-27               Chirp Start Frequency                 Hertz                                 FLOAT
+ 28-31               Chirp End Frequency                   Hertz                                 FLOAT
+ 32-35               Mixer Frequency                       Hertz                                 FLOAT
+ 36-39               Sample Rate                           Hertz                                 FLOAT
+ 40-43               Offset to First Sample                Nanoseconds                          UINT32
+ 44-47               Time Delay Uncertainty                Seconds                               FLOAT
+ 48-51               Time Scale Factor                     Seconds                               FLOAT
+ 52-55               Time Scale Accuracy                   Percent                               FLOAT
+ 56-59               Angle Scale Factor                    Degrees                              UINT32
+ 60-63                Reserved                                                                  UINT32
+ 64-67                Time to First Bottom Return           Nanoseconds                         UINT32
+ 68                   Format Revision Level (0 to 5)                                             Byte
+ 69                   Binning Flag (0 to 2)                                                      Byte
+ 70                   TVG                                   dB/100m                              Byte
+ 71                   Reserved                                                                   Byte
+ 72-75                Span                                  Meters or Degrees                   FLOAT
+ 76-79                Bin Size                              Meters or Degrees                   FLOAT
+                                 Table 2-28: Header Description (Continued)
+
+
+ NOTES:
+
+ •    As of May 2014, bytes 18-19, 44-47, 60-63, and 70 have been modified.
+
+ •    If the unit field is empty, then that parameter is unitless.
+
+ •    The TVG field (byte 70) is the value applied to the bathymetry datagrams during data collection.
+      This TVG does not apply to the side scan records.
+
+ •    Bin Size field (byte 76-79). If output binning = 1, bin size (in meters). If output binning = 2, beam
+      width (in degrees).
+
+
+2.5.1.2 Data Fields
+Several data fields contained within a 3000 message need to be interpreted to understand the
+bathymetric format. This section describes each.
+28
+
+
+2.5.1.2.1 Uncertainty Estimates
+Each bathymetric measurement is composed of a vector from the sonar to a measurement point on the
+seafloor. The vector is defined by the time (and hence range) at which the measurement is made and the
+received angle relative to the nadir of the acoustic return at that instant. Each of these components (the
+range and angle) has some finite measurement uncertainty. The sonar captures these measurement
+values and provides an estimate for each.
+
+The Time Delay Uncertainty Estimate (bytes 44-47) is the potential acoustic uncertainty of the true delay
+of each detected echo. This field is used to compute the range uncertainty, in meters, for each sample in
+the data packet and is expressed at the 2-sigma level. For more information, see SECTION 2.5.1.4.3.
+
+The Angle Uncertainty is also computed and reported for each sounding. For more information, see
+SECTION 2.5.1.4.6.
+
+2.5.1.2.2 Format Revision Level
+The Format Revision Level (byte 68) may have a value between 0 and 5. The revision number affects the
+interpretation of the data fields listed in TABLE 2-21 and the N x 4 sample sets described in subsection
+2.5.1.3 and includes the additional information for binned data. Revisions 0 through 2 only provide
+information for interferometric data, whereas Revisions 3 and 4 support the interferometric and pseudo
+multibeam data formats. Even though the latest Format Revision Level supports interferometric output,
+it is rarely used and should not be implemented unless necessary.
+
+The current Format Revision Level is 5 and is described in subsection 2.5.1.3.
+
+2.5.1.2.3 Binning Flag
+The Binning Flag (byte 69) specifies the type of binning output and may have a value between 0 and 2. A
+value of 0 indicates that no binning has been carried out. The data output is purely interferometric. A
+value of 1 indicates the data have been binned based on a user-defined equidistant across-track bin size
+to produce multibeam-like data. A value of 2 indicates that the data have been binned based on a user-
+defined equiangular beam size to create an alternate form of multibeam-like data.
+
+When this binning process occurs, the data is filtered (or cleaned of outliers) as much as possible before
+binning so that each local estimate is not corrupted by surface or wake artifacts. As opposed to an average,
+a median estimate is also used to reduce the effects of outliers on the local estimates.
+
+As of July 2014, the Discover Bathymetric Acquisition Software no longer supports the interferometric
+output; only binned data is provided. This change affects the Flag Interpretation Fields described in
+subsection 2.5.1.4.7.
+
+2.5.1.2.4 Span
+
+Span (BYTES 72-75), states the number of samples returned per side, per ping. This parameter can be
+specified in meters or degrees and depends on the binning type selected in byte 69.
+
+The correlation between Binning and Span is defined below.
+
+If Binning = 0, then Span =           Maximum processing range defined in the
+                                      bathymetric processing parameters (in meters).
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                           0023492_REV_R
+                                                                                                      29
+
+
+If Binning = 1, then Span =            Number of bins x bin size (in meters).
+If Binning = 2, then Span =            Number of beams x beam size (in degrees).
+
+Therefore, the final data set would be computed as Span x 2.
+
+2.5.1.3 Format Revision Level 4 or higher
+Following the BathymetricDataMessageType header (or 3000 message header) are N sample sets (N
+being derived from bytes 12 – 13, appropriately labeled numberOfSamples), with each having the 16-bit
+integer fields described below. Note the third set of 16 bits is broken down into the amplitude and angle
+uncertainty fields, whereas the last 16 bits compose the flag, SNR, and quality components.
+
+
+ BYTE OFFSET          DESCRIPTION                         UNITS                             BITS
+                                                          See TIME SCALE FACTOR (BYTES 48-
+                      Time Delay                                                           UINT16
+                                                          51)
+                                                          SEE ANGLE SCALE FACTOR
+                      Angle                                                                 INT16
+                                                          (BYTES 56-59)
+                      Amplitude                           0.5dB                             Byte
+                      Angle Uncertainty                   Degrees, 2-sigma level            Byte
+                      Flag                                N/A                               Byte
+ 0-4                  SNR                                 dB                                5, unsigned
+ 5-7                  Quality                             Percent                           3, unsigned
+                                Table 2-29: Format Revision Level 4 or Higher
+
+   CAUTION: Use the angle as a signed value! Please refer to sub-section 2.5.1.4.4 for further
+   information.
+
+2.5.1.4 Essential Calculations / Definitions
+The following calculations and definitions are essential to understanding and using the Bathymetric
+Message format:
+
+2.5.1.4.1 Echo Time
+The Echo Time is the total time it takes to receive an echo from the seafloor in seconds:
+
+                            timeToFirstSample                                   
+               EchoTime =                    + (time_delay × timeScaleFactor )
+                                 1 × 10 9                                       
+
+                                     Equation 2-2: Echo Time Equation
+30
+
+
+2.5.1.4.2 Nominal Slant Range to Echo
+The Slant Range to Echo is the slant range to each sample in meters:
+
+                                            soundVelocity 
+                             Slant Range =                 × EchoTime
+                                                 2        
+
+                           Equation 2-3: Nominal Slant Range to Eco Equation
+Where soundVelocity must be in meters per second and should be acquired from the 3002 message, or
+PressureMessageType, described in 2.5.3 MESSAGE TYPE 3002: PRESSUREMESSAGETYPE.
+
+2.5.1.4.3 Range Uncertainty Estimate
+The Range Uncertainty Estimate is the potential acoustic uncertainty of the range for each sample in the
+data packet. It is specified in meters at the 2-sigma level.
+
+                                    soundVelocity 
+                            2σ R =                 × timeDelayUncertainty
+                                         2        
+
+                                 Equation 2-4: Range Uncertainty Equation
+2.5.1.4.4 The angle from Nadir for Each Sample
+As reported in degrees, angles are measured positive from the Nadir of the Sonar Head and increase
+outwards from both port and starboard. If data for a specific channel, such as the port side, falls behind
+Nadir, these correspond to negative angles.
+
+
+                              Port Array                      Starboard Array
+
+
+
+
+                             +
+                                     _
+
+
+                           Figure 2-1: Angles per side, as reported from Nadir
+When both port and starboard data sets are computed and rendered together in the same frame of
+reference, negative angles are plotted on the port side, and positive angles are plotted on the starboard
+side. This relationship is defined by the equation below, where Channel = 0 for port or 1 for starboard.
+                                         (Channel +1)
+                   AngleFromNadir = (− 1)             × angle × angleScale Factor
+
+                                 Equation 2-5: Angle from Nadir Equation
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                         0023492_REV_R
+                                                                                                              31
+
+
+
+
+                        Port Side                                    Starboard Side
+
+
+
+
+                                         _              +
+
+                         Figure 2-2: Angles displayed as a single reference frame
+2.5.1.4.5 Amplitude
+Amplitude is a fundamental attribute used to trim invalid data points from the final data set and primarily
+excludes weak echoes, such as the water column or very weak backscatter, based on some minimum
+threshold. Good seafloor echoes are typically above 25 dB to 30 dB, depending on the bottom type. Values
+less than 20 dB are typically not bottom echoes (i.e., noise). The system's data points can have an
+amplitude value between 0 – 127.5dB and are reported in 0.5dB increments.
+
+2.5.1.4.6 Angle Uncertainty Estimate
+The Angle Uncertainty Estimate is reported at the 2-sigma level and can vary between 0 and 5.1 degrees,
+reported in 0.02-degree increments. Any angle uncertainty larger than 5.1 degrees is clamped to 5.1
+degrees.
+
+2.5.1.4.7 Flag Interpretation
+These flags are used for data cleaning and, if set to 1, indicate data deemed invalid points by the
+processing algorithm. A description of these flags is listed below.
+
+   NOTE: As of July 2014, Discover Bathymetric Acquisition Software no longer supports the
+   interferometric output. Therefore, bits 0 through 4 can be safely disregarded unless parsing
+   interferometric data is required.
+   Bit 5, however, is essential to interpreting the binned data correctly (Binning Flag = 1 or 2). If it is
+   not, then there will be a false sounding reported at the sonar head’s location (0, 0).
+
+        Bit 0:    Outlier Removal Flag – if set, the processing algorithm deems these data points as
+                  having excessive deviations from the norm.
+
+        Bit 1:    Water Column Flag – if set, the processing algorithm deems these data points as part
+                  of the water column and are not used in determining the seafloor estimates.
+
+        Bit 2:    Amplitude – if set, the processing algorithm deems these data points as invalid based
+                  on the calculated threshold. This fundamental attribute is primarily used to exclude
+                  weak echo points, such as the water column returns and weak backscatter amplitudes.
+
+        Bit 3:    Quality – if set, the processing algorithm deems these data points as invalid based on
+                  angle uncertainty. This filter is used to eliminate points whose phase differences are
+                  greater than some specified tolerance.
+32
+
+
+        Bit 4:     SNR – if set, the processing algorithm deems these data points as invalid based on the
+                   SNR. This filter is very useful in trimming data points where the angle estimation quality
+                   is low due to noise and multipath effects.
+
+        Bit 5:     Null Content Binned Data – if set, the binned data contains null content and should be
+                   excluded from all processing (i.e., if the total across-track extent is too large for the
+                   depth, then some bins may be empty and deemed null). This bit is only valid when the
+                   data are binned. (See caution on the following page.)
+
+        Bit 6 - 7: Reserved
+
+
+                 CAUTION: Null bins may or may not have null or 0 values for the Time
+                 Delay, Angle, or Amplitude fields in ERROR! REFERENCE SOURCE NOT FOUND.. Bit
+                 5 must be used and is essential in removing invalid data points.
+
+2.5.1.4.8 Coherent SNR
+Coherent SNR is a useful statistic used to trim invalid data points with high-angle noise due to multipath
+effects. When estimating the primary (largest amplitude) angle of arrival, the process also returns an
+estimate of the power in this angle. This power is compared to the signal's total power at that instant, so
+a coherent Signal (primary echo) to Noise (noise plus all multipath echoes) can be estimated. In practice,
+the true noise component of this is very small over the useful range of the bathymetry data and is almost
+all due to multipath interference echoes.
+SNR values greater than 20dB are excellent in terms of angle estimation quality, while less than 10dB are
+quite poor. Useful thresholds are between 10-20 dB, depending on the desire for maximum swath (more
+noise) or lower noise and narrower swath widths.
+This metric is described by a 5-bit value that ranges between 0 and 31dB in 1dB increments. Any value
+higher than 31dB is limited to 31dB.
+2.5.1.4.9 EdgeTech Bathymetric Quality Factor
+The EdgeTech Bathymetric Quality Factor is a metric used to identify how well the interstave phase
+measurements agree. The array used to determine the angles has 10 x ½ wavelength spaced elements.
+This allows the estimation of 9 interstave phase estimates. All of these would agree in the ideal case (no
+errors, noise, or interfering multipath). In practice, this is not the case, and interstave phases may either
+agree quite well (+/- 5 – 10 degrees) or not at all (up to +/- 90 deg). A 3-bit value describes this metric and
+has been broken down into 8 discrete numbers associated with each:
+        0 – quality < 50%
+        1 – 50% <= quality < 60%
+        2 – 60% <= quality < 70%
+        3 – 70% <= quality < 75%
+        4 – 75% <= quality < 80%
+        5 – 80% <= quality < 85%
+        6 – 85% <= quality < 90%
+        7 – 90% <= quality
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                               0023492_REV_R
+                                                                                                          33
+
+
+
+                NOTE: Data with a Quality Factor of less than 50% should be discarded in
+                most cases. High-quality data is anything above 70-80%. The quality
+                factor can be set quite high (90%), especially when the seafloor is very
+                flat.
+
+2.5.1.4.10      Nadir Depth (or Depth below Sounder)
+The system incorporates a single-beam echo sounder mode with a 15-degree beamwidth. This depth is
+reported for each ping and is independent of any bathymetric calculations or principles (see 2.5.4 MESSAGE
+TYPE 3003: ALTITUDEMESSAGETYPE). The value is specified in meters and is defined as:
+
+                                      soundVelocity 
+                 DepthBelowSounder =                 × timeToFirstBottomreturn
+                                           2        
+
+                       Equation 2-6: Depth Below Sounder (Nadir Depth) Equation
+
+  Where soundVelocity must be in meters per second and acquired from the 3002 message, or
+PressureMessageType described in 2.5.3 MESSAGE TYPE 3002: PRESSUREMESSAGETYPE.
+
+This parameter is used in the calculation for the Water Column Filter. This filtering metric is useful for
+trimming the water column data but may also trim data from close-up targets such as dock walls, sharp
+banks, etc., so caution should be taken when surveying next to steep slopes. This filter can also be turned
+off when the water column filter is too aggressive or if it is desired to retain objects in the water column,
+such as the mast of a shipwreck.
+
+2.5.1.4.11      Seafloor Samples
+The seafloor samples are computed as raw X and Z values, reported in meters, and are calculated as:
+
+                             x = SlantRange × sin(AngleFromNadir)
+
+                           Equation 2-7: Raw X Seafloor Sample Value Equation
+                             z = SlantRange × cos(AngleFromNadir)
+
+                           Equation 2-8: Raw Z Seafloor Sample Value Equation
+
+Once these data points are rendered, a median filter is run over the data to exclude data points whose Z
+values deviate significantly from the local median value. This filter, known as the Outlier Removal Filter,
+is effective when equidistant across-track binning is used. However, it is not used when equiangle
+binning is implemented, allowing large vertical structures to be retained.
+
+2.5.1.4.12      Binning
+Currently, the processor can utilize two types of binning schemes.
+
+The first scheme uses equidistant sections and does a good job of plotting most seafloor topographies.
+The user must only specify the bin size, whereas the Discover Bathymetric Software automatically
+34
+
+
+calculates the other two parameters. The maximum number of bins is 800. This relationship is defined
+below.
+
+                              TotalSwath = NumberOfBins × BinSize
+
+                               Equation 2-9: Binning Total Swath Equation
+
+This method, however, cannot plot vertical objects very well, as it inherently collapses the data within a
+single bin.
+
+The second scheme uses equiangular bins and is very useful for plotting vertical objects. The user only
+should specify the bin (or beam) size. The total field of view is set to a constant 200 deg, and the maximum
+number of bins is 800. This relationship is described below.
+
+                                200° = NumberOfBeams × BeamSize
+
+                    Equation 2-10: Binning Total Swath Equation for Vertical Objects
+This method, however, does not provide an evenly distributed seafloor profile like the equidistant method
+described above. Instead, it provides dense soundings near the nadir and fewer soundings as the angle
+increases from the nadir, which could result in poor object detection at the extremities.
+
+2.5.2 Message Type 3001: AttitudeMessageType
+Message ID: 3001
+
+AttitudeMessageType is a source for roll, pitch, heave, and heading data. Yaw is not used. Some or all
+these fields may be valid (or set to 1) depending on the sensor or sensor type used.
+
+ BYTE OFFSET        DESCRIPTION                           UNITS                                    SIZE
+ 0-3                Time Since 1/1/1970                   Seconds                                UINT32
+ 4-7                Nanosecond Supplement to Time         Nanoseconds                            UINT32
+                    Data Valid Flag
+                       • Bit 0: Heading
+                       • Bit 1: Heave
+ 8-11                                                     0 – clear, 1 – set                     UINT32
+                       • Bit 2: Pitch
+                       • Bit 3: Roll
+                       • Bit 4: Yaw
+ 12-15              Heading (0 to 359.9)                  Degrees                                FLOAT
+ 16-19              Heave                                 Meters                                 FLOAT
+ 20-23              Pitch                                 Degrees                                FLOAT
+ 24-27              Roll                                  Degrees                                FLOAT
+ 28-31              Yaw                                   Degrees                                FLOAT
+
+                                    Table 2-30: AttitudeMessageType
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                           0023492_REV_R
+                                                                                                        35
+
+
+The EdgeTech convention is:
+
+     •   Roll is positive, port up                        •   Heave is positive down
+     •   Pitch is positive, bow up                           • Yaw is positive to starboard
+The validity of each field is indicated in the Data Valid Flag (bytes 8-11). This must be used to parse the
+fields correctly. The populated fields depend on the device used in conjunction with the sonar system
+supplying the data.
+Since each message has a single unique timestamp, only one input string (or message) supplied from the
+incorporated device is in this message at any one time. Unused fields are flagged as such (or set to 0) in
+the Data Valid Flag (see examples below).
+The timestamp accuracy of this message with respect to the sonar ping emission time is approximately
+one millisecond at 80% and two milliseconds at 100% of the samples.
+2.5.2.1 Example 1
+
+The data source is a TSS CMS attitude sensor and supplies roll, pitch, and heave over a single message
+(i.e., TSS1). The sensor does not supply yaw or heading. The Data Valid Flag would be:
+Bit 0: heading = 0
+Bit 1: heave      = 1
+Bit 2: pitch      = 1
+Bit 3: roll       = 1
+Bit 4: yaw        = 0
+2.5.2.2 Example 2
+
+The data source is an OCTANS Inertial Navigation System (INS), and supplies roll, pitch, heave, and heading
+in a single message. The sensor does not supply yaw. The Data Valid Flag would be populated as follows:
+Bit 0: heading = 1
+Bit 1: heave    = 1
+Bit 2: pitch    = 1
+Bit 3: roll     = 1
+Bit 4: yaw      = 0
+
+
+2.5.3 Message Type 3002: PressureMessageType
+Message ID: 3002
+PressureMessageType is a source for sound velocity and possibly water temperature, salinity,
+conductivity, and depth.
+36
+
+
+
+ BYTE OFFSET        DESCRIPTION                              UNITS                               SIZE
+ 0-3                Time Since 1/1/1970                      Seconds                           UINT32
+ 4-7                Nanosecond Supplement to Time            Nanoseconds                       UINT32
+ 8-11               Data Valid Flag                          0 – clear, 1 – set                UINT32
+ 12-15              Absolute Pressure                        PSI                                FLOAT
+ 16-19              Water Temperature                        Degrees                            FLOAT
+ 20-23              Salinity (PPM)                           Parts/Million                      FLOAT
+ 24-27              Conductivity                             Degrees                            FLOAT
+ 28-31              Sound Velocity                           Meters/Second                      FLOAT
+ 32-35              Depth                                    Meters                             FLOAT
+
+                                   Table 2-31: PressureMessageType
+Only subsea platforms (such as ROV, ROTV, and AUV applications) will have a valid Depth field (bytes 32-
+35) provided by the platform’s depth or pressure sensor.
+
+The Sound Velocity (bytes 28-31) is the sound velocity measured at the sonar head and must be used when
+calculating Slant Range in Message ID 3000 or BATHYMETRICDATAMESSAGETYPE.
+
+The timestamp accuracy is 20 milliseconds or better.
+
+The validity of each field is determined as in 2.5.2 MESSAGE TYPE 3001: ATTITUDEMESSAGETYPE. Unused fields
+are flagged as such (or set to 0) in the Data Valid Flag (bytes 8-11).
+
+2.5.4 Message Type 3003: AltitudeMessageType
+Message ID: 3003
+
+AltitudeMessageType is a source for altitude and possibly speed and heading.
+
+ BYTE OFFSET        DESCRIPTION                          UNITS                                   SIZE
+ 0-3                Time Since 1/1/1970                  Seconds                               UINT32
+ 4-7                Nanosecond Supplement to Time        Nanoseconds                           UINT32
+                    Data Valid Flag
+                       • Bit 0: Altitude
+ 8-11                                                    0 – clear, 1 – set                    UINT32
+                       • Bit 1: Speed
+                       • Bit 2: Heading
+ 12-15              Altitude                             Meters                                 FLOAT
+ 16-19              Speed                                Knots                                  FLOAT
+ 20-23              Heading (0 to 359.9)                 Degrees                                FLOAT
+                                      Table 2-32: AltitudeMessageType
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                         0023492_REV_R
+                                                                                                          37
+
+
+This Altitude parameter (bytes 12-15) is reported for each ping and is the value computed from the Depth
+Below Sounder (2.5.1.4.10). This field will always be valid and should be added to the depth field (if
+available) from Message ID 3002, or PRESSUREMESSAGETYPE, to calculate the total water depth.
+
+For Speed (bytes 16-19) and Heading (bytes 20-23), the Data Valid Flag (bytes 8-11) should be tested to
+determine if these fields are usable (or set to 1). The validity of these fields depends on what devices are
+connected to the sonar system. For example, if a device connected to the sonar supplies heading only
+(such as a gyroscope), this heading field would be valid.
+
+Again, the validity of each field is determined as in 2.5.2 MESSAGE TYPE 3001: ATTITUDEMESSAGETYPE. Unused
+fields are flagged as such (or set to 0) in the Data Valid Flag.
+
+2.5.5 Message Type 3004: PositionMessageType
+Message ID: 3004
+PositionMessageType is a source for position (latitude/longitude), heading, speed, and antenna altitude.
+UTM Zone, Easting, and Northing fields are not typically used.
+
+ BYTE OFFSET         DESCRIPTION                          UNITS                                    SIZE
+ 0-3                 Time Since 1/1/1970                  Seconds                                UINT32
+ 4-7                 Nanosecond Supplement to Time        Nanoseconds                            UINT32
+                     Data Valid Flag
+                        • Bit 0: UTM Zone
+                         •     Bit 1: Easting
+                         •     Bit 2: Northing
+ 8-9                     •     Bit 3: Latitude            0 – clear, 1 – set                     UINT16
+                         •     Bit 4: Longitude
+                         •     Bit 5: Speed
+                         •     Bit 6: Heading
+                         •     Bit 7: Antenna Height
+ 10-11               UTM Zone                                                                    UINT16
+ 12-19               Easting                              Meters                                DOUBLE
+ 20-27               Northing                             Meters                                DOUBLE
+ 28-35               Latitude                             Degrees                               DOUBLE
+ 36-43               Longitude                            Degrees                               DOUBLE
+ 44-47               Speed                                Knots                                  FLOAT
+ 48-51               Heading (0 to 359.9)                 Degrees                                FLOAT
+ 52-55               Antenna Height                       Meters                                 FLOAT
+                                      Table 2-33: PositionMessageType
+The EdgeTech convention is:
+    •    Latitude is positive North
+38
+
+
+
+      •   Longitude is positive East
+      •   Heading is always positive
+      •   Antenna Height is positive up
+
+The Data Valid Flag (bytes 8-9) must be tested for the presence or absence of data in each field. If a GPS
+device is connected and it is a dual antenna system supplying heading, then the Heading field (bytes 48-
+51) is also valid (or set to 1).
+Antenna Height, or ellipsoid height (bytes 52-55), may or may not be populated and depends on the GPS
+device connected. The validity of each field is determined as in section 2.5.2 MESSAGE TYPE 3001:
+ATTITUDEMESSAGETYPE. Unused fields are flagged as such (or set to 0) in the Data Valid Flag.
+
+2.5.6 Message Type 3005: StatusMessageType
+Message ID: 3005
+
+StatusMessageType is a source of GPS status and quality (i.e., fixed, float, DGPS, etc.). The status includes
+information such as the Number of Satellites and Horizontal Dilution of Precision. Its numerical code gives
+the quality indicator in the incoming GPS message. EdgeTech reads these status codes and indicates which
+message structure provided the information. Only two sources can currently provide the necessary status
+information: GGA or GGK.
+
+
+     NOTE: The Talker ID for the incoming GPS messages does not matter (e.g., $GPGGA, $PTNL,GGK,
+     $INGGK, $GPGGK, etc.)
+
+ BYTE OFFSET          DESCRIPTION                              UNITS                           SIZE
+ 0-3                  Time Since 1/1/1970                      Seconds                           UINT32
+ 4-7                  Nanosecond Supplement to Time            Nanoseconds                       UINT32
+                      Data Valid Flag
+                         • Bit 0: GGA Status
+ 8-9                      •     Bit 1: GGK Status              0 – clear, 1 – set                UINT16
+                          •     Bit 2: Number of Satellites
+                          •     Bit 3: Dilution of Precision
+ 10                   Version                                                                      Byte
+ 11                   GGA Status                                                                   Byte
+ 12                   GGK Status                                                                   Byte
+ 13                   Number of Satellites                                                         Byte
+ 14-15                Reserved                                                                     Byte
+ 16-19                Dilution of Precision                    Meters                             FLOAT
+ 20-63                Reserved                                                                 11XUINT32
+                                         Table 2-34: StatusMessageType
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                            0023492_REV_R
+                                                                                                        39
+
+
+The Data Valid Flag must be tested for the presence or absence of data in each field. The validity of each
+field is determined as in 2.5.2 MESSAGE TYPE 3001: ATTITUDEMESSAGETYPE. Unused fields are flagged as such
+(or set to 0) in the Data Valid Flag.
+
+2.5.7 Message Type 3041: BathymetricParameterPublicMessageType
+Message ID: 3041
+BathymetricParameterPublicMessageType reports bathymetric processing parameters.
+
+ BYTE OFFSET        DESCRIPTION                                  UNITS                         SIZE
+                    Bathymetric Processing
+                    0: Off                                                                   UINT16
+ 0-1
+                    1: Stave’s Original Algorithm
+                    2: Faster Algorithm
+                    Processing Flags
+                         • Bit 0: Invert Heave Sign
+                         • Bit 1: Reserved
+                         • Bit 2: Reserved
+ 2-3                     • Bit 3: Ignore NMEA time (0: NMEA                                  UINT16
+                             time,1; Ignore NMEA time)
+                         • Bit 4: Altitude method (0: track
+                             bottom,1: manual)
+                         • Bit 5: Auto amplitude (0:
+                             disable,1: enable)
+                    Installation Angle
+ 4-11               Byte 4 – 7: Port installation angle       Degrees                       2 X FLOAT
+                    Byte 8 - 11: Starboard installation angle
+ 12-15              Maximum Processing Range (0 – 350)           Meters                       FLOAT
+ 16-19              Minimum Processing Range (0 – 100)           Meters                       FLOAT
+ 20-23              Maximum Altitude (0 – 350)                   Meters                       FLOAT
+ 24-27              Minimum Altitude (0 – 100)                   Meters                       FLOAT
+ 28-31              Manual Altitude                              Meters                       FLOAT
+                    Array Elements
+ 32-33              Byte 32: Number of port array elements                                  2 X UINT8
+                    Byte 33: Number of starboard elements
+                    Mounting Direction
+                    Byte 34: Mounting direction of the port
+                    array
+ 34-35                                                                                      2 X UINT8
+                    Byte 35: Mounting direction of starboard
+                    array
+                    (CONTINUED NEXT PAGE)
+
+                         Table 2-35: BathymetricParameterPublicMessageType
+40
+
+
+
+ BYTE OFFSET      DESCRIPTION                           UNITS                        SIZE
+                  Installation Horizontal Offset
+ 36-43            Byte 36-39: Port array [0.0-10.0]      Meter                     2 X FLOAT
+                  Byte 40-43: Starboard array [0.0-10.0]
+                  Auto Amplitude Sensitivity
+ 44-47                                                                              FLOAT
+                  Threshold [0.5-5.0]
+                  Multi-Path Suppression Level
+ 48-51                                                                              UINT32
+                  Suppression Level: 1,3 & 5
+                  Covariance Max Region Size
+ 52-55                                                  Meter                       FLOAT
+                  Max size [0.0-10.0]
+                  Amplitude Threshold
+ 56-59                                                                              UINT32
+                  Rang: [0-1000]
+                  Minimum Quality Factor
+ 60-63                                                                              FLOAT
+                  Range: [0.0 – 1.0]
+                  Maximum Output Angle
+ 64-67                                                  Degree                      FLOAT
+                  Range: [0.0 – 120.0]
+                  Decimation Factor
+ 68-71                                                                              UINT32
+                  Range: [1 – 100]
+                  Altitude Data Source
+                  0: Array selector port
+                  1: Array selector starboard
+ 72                                                                              Unsigned Char
+                  3: Array selector sum
+                  4: Array selector product
+                  5: Array selector minimum
+ 73               TVG                                                               UINT8
+ 74               Max TVG                                                           UINT8
+                  SNR Threshold
+ 75                                                                                 UINTT8
+                  Range: [0-40] dB
+                  Table 2-35: BathymetricParameterPublicMessageType(Continued)
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                0023492_REV_R
+                                                                                                             41
+
+
+
+2.6 Beamformed Messages
+The JSF file has been extended to support data produced by EdgeTech’s eBOSS system which produces
+beamformed volume data. These new extensions, called Beamformed Data Messages, consist of the 40XX
+family of messages used for the time-stamped beamformed data and supporting information such as
+position, motion, heading, etc.
+2.6.1 Message Type 4000: BossBeamformedVolumeData Structure
+Message ID: 4000
+BossBeamformedVolumeData: Beamformed output volume data.
+Voxel: A Voxel represents a discrete unit of volume in a 3D space. For example, a cube on a 3D grid.
+
+BYTE OFFSET                                DESCRIPTION                                   UNITS        SIZE
+
+  0-3          Voxel X resolution                                                        meters      FLOAT
+  4-7          Voxel Y resolution                                                        meters      FLOAT
+  8-11         Voxel Z resolution                                                        meters      FLOAT
+  12-15        Voxel X dimension                                                         count       FLOAT
+  16-19        Voxel Y dimension                                                         count       FLOAT
+  20-23        Voxel Z dimension                                                         count       FLOAT
+  24-31        Time since epoch                                                        seconds DOUBLE
+               Voxel data begins here:
+               floatvoxelData[NumZVoxels][NumYVoxels][NumXVoxels]
+  32                                                                                                FLOAT[]
+               Where X is positive forward, Y is positive to stbd, and Z is positive
+               down. The first NumXVoxels * NumYVoxels are for the first Z value.
+                                Table 2-36: BossBeamformedVolumeData
+2.6.2 Message Type 4034: EDPMSG_NAV Structure
+Message ID: 4034
+EDPMSG_NAV Structure: Atlas Navigation message, contains all auxiliary data required for eBOSS data
+post-processing and import
+ BYTE OFFSET     DESCRIPTION                                                 UNITS                SIZE
+
+ 0-3             Time of receipt in Seconds since 1/1/1970                  Seconds               INT32
+ 4-7             Milliseconds of receipt in the Current Second            Milliseconds            INT32
+ 8-11            Reserved                                                                        4 x UINT8
+                 Magic word (find start of telegram)
+ 12-15           #define TCPTEL_MAGIC 0x76543210                                                  UINT32
+                 (CONTINUED NEXT PAGE)
+                                    Table 2-37: EDPMSG_NAV Structure
+42
+
+
+
+ BYTE OFFSET           DESCRIPTION                                     UNITS            SIZE
+
+ 16-19                 Telegram length (incl. header)                  Bytes              UINT32
+                       Telegram identifier (e.g.
+ 20-23                                                                                    UINT32
+                       ATLAS_EDP_MESSAGE_ID)
+                       Time of measurement in seconds since epoch
+ 24-27                                                                 Seconds            UINT32
+                       1/1/1970
+                       Microseconds of current second for additional
+ 28-31                                                                 microseconds       UINT32
+                       resolution
+ 32-33                 Navigation mode                                                    UINT16
+ 34-35                 NAV_VALID bitmask*                                                 UINT16
+ 36-43                 Latitude                                        radians           DOUBLE
+ 44-51                 Longitude                                       radians           DOUBLE
+ 52-55                 Depth                                           meters             FLOAT
+ 56-59                 Altitude                                        meters             FLOAT
+ 60-63                 Roll                                            radians            FLOAT
+ 64-67                 Pitch                                           radians            FLOAT
+ 68-71                 Heading                                         radians            FLOAT
+ 72-75                 Velocity North (Over Ground)                    m/s                FLOAT
+ 76-79                 Velocity East (Over Ground)                     m/s                FLOAT
+ 80-83                 Velocity Down (Over Ground)                     m/s                FLOAT
+ 84-87                 Angular rate X (delta heading)                  rad/s              FLOAT
+ 88-91                 Angular rate Y (delta down/up)                  rad/s              FLOAT
+ 92-95                 Angular rate Z (delta right/left)               rad/s              FLOAT
+ 96-99                 Acceleration X (ahead)                          m/s²               FLOAT
+ 100-103               Acceleration Y (right)                          m/s²               FLOAT
+ 104-107               Acceleration Z (down)                           m/s²               FLOAT
+ 108-111               Sea current North                               m/s                FLOAT
+ 112-115               Sea current East                                m/s                FLOAT
+ 116-119               Sound velocity                                  m/s                FLOAT
+*See NAV_VALID Flag Values (AtlasEdpMsgValidityValues)
+
+                               Table 2-37: EDPMSG_NAV Structure (Continued)
+
+
+
+
+JSF FILE AND MESSAGE DESCRIPTIONS                                                     0023492_REV_R
+                                                                                   43
+
+
+2.6.2.1 NAV_VALID Flag Values (AtlasEdpMsgValidityValues)
+
+ FLAG                           DESCRIPTION                             VALUE (HEX)
+ EDD_NAV_VALID_POS              Position valid bit                        0x0001
+ EDP_NAV_VALID_DEPTH            Depth valid bit                           0x0002
+ EDP_NAV_VALID_ATT              Attitude (roll, pitch) valid bit          0x0004
+ EDP_NAV_VALID_HEAD             Heading valid bit                         0x0008
+ EDP_NAV_VALID_VELO_OG          Velocity over ground valid bit            0x0010
+ EDP_NAV_VALID_RATES_ACC        Angular rates valid bit                   0x0020
+ EDP_NAV_VALID_VELO_TW          Velocity through water valid bit          0x0040
+ EDP_NAV_VEL_EARTH_COORDS Velocity over ground in ship coords if set;     0x0800
+                           th    i i        th   d
+ EDP_NAV_VALID_ALTITUDE   Altitude valid bit                              0x2000
+ EDP_NAV_VALID_SEACURRENT       Sea current valid bit                     0x4000
+ EDP_NAV_VALID_SOUNDVELO        Sound velocity valid bit                  0x8000
+
+                              Table 2-38: NAV_VALID Flag Values
+

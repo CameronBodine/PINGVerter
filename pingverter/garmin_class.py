@@ -45,6 +45,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 import pyproj
+from io import BytesIO
 
 # Add 'pingmapper' to the path, may not need after pypi package...
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -194,8 +195,209 @@ class gar(object):
 
         self.file_header = out_dict
 
+        # Parse channel_information_array (field 6) for per-channel metadata.
+        self.channel_info = self._parseChannelInformation(firstHeadBytes)
+
 
         return
+
+    # ======================================================================
+    def _read_varuint(self, file_obj):
+        """Read protobuf-style VarUInt32/VarUInt64 from a file-like object."""
+        result = 0
+        shift = 0
+
+        while True:
+            b = file_obj.read(1)
+            if not b:
+                raise EOFError('Unexpected EOF while reading varuint.')
+
+            byte = b[0]
+            result |= (byte & 0x7F) << shift
+
+            if not (byte & 0x80):
+                return result
+
+            shift += 7
+            if shift > 63:
+                raise ValueError('Invalid varuint: too many continuation bytes.')
+
+    # ======================================================================
+    def _decode_varuint_bytes(self, data: bytes):
+        stream = BytesIO(data)
+        return self._read_varuint(stream)
+
+    # ======================================================================
+    def _decode_varint32_bytes(self, data: bytes):
+        """Decode zig-zag encoded VarInt32 from bytes."""
+        u = self._decode_varuint_bytes(data)
+        return (u >> 1) ^ -(u & 1)
+
+    # ======================================================================
+    def _decode_depth_varint(self, data: bytes):
+        """Decode Garmin depth-like varints.
+
+        Some RSD files appear to store these values as unsigned varints while
+        others align with zig-zag VarInt32 semantics from the reverse-engineered
+        spec. If zig-zag yields a negative depth, fall back to unsigned.
+        """
+        u = self._decode_varuint_bytes(data)
+        z = self._decode_varint32_bytes(data)
+
+        candidates = [v for v in (u, z) if v >= 0]
+        if not candidates:
+            return u
+
+        # Keep depth-like values within a broad physical bound (<= 5 km in mm)
+        # when possible, otherwise pick the smaller non-negative decoding.
+        plausible = [v for v in candidates if v <= 5_000_000]
+        if plausible:
+            return min(plausible)
+
+        # Some files appear to serialize these fields as fixed-width integers.
+        if len(data) in (2, 4):
+            le = int.from_bytes(data, 'little', signed=False)
+            if le <= 5_000_000:
+                return le
+
+        return min(candidates)
+
+    # ======================================================================
+    def _parse_var_struct_payload(self, payload: bytes):
+        """Parse a variable-structure payload into (field_number, raw_value_bytes)."""
+        stream = BytesIO(payload)
+        fields = []
+
+        try:
+            field_cnt = self._read_varuint(stream)
+        except EOFError:
+            return fields
+
+        for _ in range(field_cnt):
+            key = self._read_varuint(stream)
+            field_num = key >> 3
+            val_len = key & 0x07
+
+            if val_len == 7:
+                val_len = self._read_varuint(stream)
+
+            val = stream.read(val_len)
+            fields.append((field_num, val))
+
+        return fields
+
+    # ======================================================================
+    def _parseChannelInformation(self, chan_info_offset: int):
+        """Parse header field 6 channel_information_array for each channel."""
+        out = []
+
+        with open(self.sonFile, 'rb') as file:
+            file.seek(chan_info_offset)
+
+            key = self._read_varuint(file)
+            if key != 55:  # field 6 with length marker 7 -> 6<<3 + 7
+                return out
+
+            payload_len = self._read_varuint(file)
+            payload = file.read(payload_len)
+
+        stream = BytesIO(payload)
+
+        try:
+            chan_cnt = self._read_varuint(stream)
+        except EOFError:
+            return out
+
+        for _ in range(chan_cnt):
+            ch_payload = b''
+            ch = {
+                'channel_id': np.nan,
+                'first_chunk_offset': np.nan,
+                'transducer_port': np.nan,
+                'start_freq_hz': np.nan,
+                'end_freq_hz': np.nan,
+                'channel_capabilities': np.nan,
+            }
+
+            # Each channel-info element is a variable structure.
+            # Parse directly from stream by reading element field count and fields.
+            try:
+                elem_field_cnt = self._read_varuint(stream)
+            except EOFError:
+                break
+
+            for _ in range(elem_field_cnt):
+                fkey = self._read_varuint(stream)
+                fnum = fkey >> 3
+                flen = fkey & 0x07
+                if flen == 7:
+                    flen = self._read_varuint(stream)
+                fval = stream.read(flen)
+
+                if fnum == 0:
+                    # data_info: varray of DataInfo structure(s)
+                    info_stream = BytesIO(fval)
+                    n = self._read_varuint(info_stream)
+                    if n > 0:
+                        for _ in range(n):
+                            item_len = self._read_varuint(info_stream)
+                            item = info_stream.read(item_len)
+                            if item_len > 0:
+                                ch['channel_id'] = self._decode_varuint_bytes(item)
+                elif fnum == 1:
+                    # first_chunk_offset: 8-byte little-endian ulong
+                    if len(fval) == 8:
+                        ch['first_chunk_offset'] = int.from_bytes(fval, 'little', signed=False)
+                elif fnum == 2:
+                    # prop_chan_info: varray of DpsChannelInformation struct(s)
+                    dps_stream = BytesIO(fval)
+                    dps_n = self._read_varuint(dps_stream)
+
+                    for _ in range(dps_n):
+                        dps_len = self._read_varuint(dps_stream)
+                        dps_payload = dps_stream.read(dps_len)
+                        dps_fields = self._parse_var_struct_payload(dps_payload)
+
+                        for dnum, dval in dps_fields:
+                            if dnum == 0:
+                                ch['transducer_port'] = self._decode_varuint_bytes(dval)
+                            elif dnum == 1:
+                                tf_fields = self._parse_var_struct_payload(dval)
+                                for tnum, tval in tf_fields:
+                                    if tnum == 1:
+                                        ch['start_freq_hz'] = self._decode_varuint_bytes(tval)
+                                    elif tnum == 2:
+                                        ch['end_freq_hz'] = self._decode_varuint_bytes(tval)
+                            elif dnum == 2:
+                                ch['channel_capabilities'] = self._decode_varuint_bytes(dval)
+
+            out.append(ch)
+
+        return out
+
+    # ======================================================================
+    def _parseBeamInfoPayload(self, payload: bytes):
+        """Parse optional beam_info structure payload and return decoded values."""
+        out = {}
+        fields = self._parse_var_struct_payload(payload)
+
+        for field_num, value in fields:
+            if field_num == 0 and len(value) > 0:
+                out['port_star_beam_angle'] = int(value[0])
+            elif field_num == 1 and len(value) > 0:
+                out['fore_aft_beam_angle'] = int(value[0])
+            elif field_num == 2 and len(value) > 0:
+                out['port_star_elem_angle'] = int(value[0])
+            elif field_num == 3 and len(value) > 0:
+                out['fore_aft_elem_angle'] = int(value[0])
+            elif field_num == 5:
+                # StructUnknown2 field 0 is strongly associated with port/star sign.
+                su2_fields = self._parse_var_struct_payload(value)
+                for su2_num, su2_val in su2_fields:
+                    if su2_num == 0 and len(su2_val) == 4:
+                        out['port_star_id'] = float(np.frombuffer(su2_val, dtype='<f4')[0])
+
+        return out
     
     # ======================================================================
     def _getFileHeaderStruct(self):
@@ -605,124 +807,49 @@ class gar(object):
         # Variable structure so above doesn't work
         # Must determine structure ping by ping
 
-        pingBodyHeaderToCheck = {
-            -1:('record_body_fcnt', '<u1'),
-            1:[('SP1_bh', '<u1'), ('channel_id_1', '<u1')], #01 channel_id
-            10:[('SP0a', '<u1'), ('bottom_depth', 'V2')],
-            # 11:[('SP0b', '<u1'), ('bottom_depth_unknown', '<u1'), ('bottom_depth', '<u2')], #0b bottom depth
-            11:[('SP0b', '<u1'), ('bottom_depth', 'V3')], #0b bottom depth
-            13:[('SP0d', '<u1'), ('unknown_sp0d', 'V5')],
-            18:[('SP12', '<u1'), ('drawn_bottom_depth', 'V2')],
-            19:[('SP13', '<u1'), ('drawn_bottom_depth', 'V3')], #13 drawn bottom depth
-            21:[('SP15', '<u1'), ('unknown_sp15', 'V5')],
-            25:[('SP19', '<u1'), ('first_sample_depth', '<u1')], #19 first sample depth
-            35:[('SP23', '<u1'), ('last_sample_depth', 'V3')], #23 last sample depth
-            41:[('SP29', '<u1'), ('gain', '<u1')], #29 gain
-            49:[('SP31', '<u1'), ('sample_status', '<u1')], #31 sample status
-            60:[('SP3c', '<u1'), ('sample_cnt', '<u4')], #3c sample count
-            65:[('SP41', '<u1'), ('shade_avail', '<u1')], #41 shade available
-            76:[('SP4c', '<u1'), ('scposn_lat', '<u4')], #4c latitude
-            84:[('SP54', '<u1'), ('scposn_lon', '<u4')], #54 longitude
-            92:[('SP5c', '<u1'), ('water_temp', '<f4')], #5c temperature
-            97:[('SP61', '<u1'), ('beam', '<u1')], #61 beam
-        }
+        # Decode variable record body by field key/length instead of fixed count assumptions.
+        rb_field_cnt = self._read_varuint(file)
+        out_dict['record_body_fcnt'] = rb_field_cnt
 
-        beamInfoToCheck = {
-            # 111:[('SP6f', '<u1'), ('bi_len', '<u1')],
-            1:[('SP1_bi', '<u1'), ('port_star_beam_angle', '<u1')],
-            9:[('SP9', '<u1'), ('fore_aft_beam_angle', '<u1')],
-            17:[('SP11', '<u1'), ('port_star_elem_angle', '<u1')],
-            25:[('SP19_bi', '<u1'), ('fore_aft_elem_angle', '<u1')],
-            47:[('SP2f', '<u1'), ('su2_len', '<u1'), ('su2_fcnt', '<u1'),
-                ('su2_f0', '<u1'), ('port_star_id', '<f4'),
-                ('su2_f1', '<u1'), ('su2_f1_unkown', '<f4'),
-                ],
-            55:[('SP37', '<u1'), ('su3_len', '<u1'), ('su3_fcnt', '<u1'),
-                ('su3_f0', '<u1'), ('su3_f0_unknown', '<u1'),
-                ('su3_f1', '<u1'), ('su3_f1_unkown', '<f4'),
-                ('su3_f2', '<u1'), ('su3_f2_unkown', '<f4'),
-                ('su3_f3', '<u1'), ('su3_f3_unkown', '<f4'),
-                ('su3_f4', '<u1'), ('su3_f4_unkown', '<f4'),
-                ('su3_f5', '<u1'), ('su3_f5_unkown', '<f4'),
-                ('su3_f6', '<u1'), ('su3_f6_unkown', '<f4'),
-                ],
-            115:[('SP73', '<u1'), ('interrogation_id', '<u2'), ('son_byte_len', '<u1')]
-        
-        }
+        for _ in range(rb_field_cnt):
+            key = self._read_varuint(file)
+            field_num = key >> 3
+            value_len = key & 0x07
+            if value_len == 7:
+                value_len = self._read_varuint(file)
 
-        beam_info = False
+            raw = file.read(value_len)
 
-        # Get field count
-        rb_field_cnt = field_cnt = self._fread_dat(file, 1, 'B')[0]
-        out_dict['record_body_fcnt'] = field_cnt
-
-        if rb_field_cnt > 13: # Only 13 known fields. Some beams have up to 15
-            field_cnt = 13
-            beam_info = True
-
-        fidx = 0
-        record_body_header_len = 0
-
-        while fidx < field_cnt:
-
-            byte = self._fread_dat(file, 1, 'B')[0]
-
-            if byte in pingBodyHeaderToCheck:
-                # Add byte
-                out_dict[pingBodyHeaderToCheck[byte][0][0]] = byte
-
-                son_struct = pingBodyHeaderToCheck[byte][1:]
-
-                elen = 0
-                for v in son_struct:
-                    elen += np.dtype(v[-1]).itemsize
-
-                buffer = file.read(elen)
-
-                # Read the data
-                header = np.frombuffer(buffer, dtype=np.dtype(son_struct))
-
-                for name, typ in header.dtype.fields.items(): # type: ignore
-                    out_dict[name] = header[name][0].item()
-                
-                fidx += 1
-                record_body_header_len += elen
-
-
-        
-
-        if beam_info:
-
-            fid_beam_info = self._fread_dat(file, 1, 'B')[0]
-            bi_len = self._fread_dat(file, 1, 'B')[0]
-            bi_fcnt = self._fread_dat(file, 1, 'B')[0]
-
-            fidx = 0
-
-            while fidx < bi_fcnt:
-
-                byte = self._fread_dat(file, 1, 'B')[0]
-
-                if byte in beamInfoToCheck:
-                    # Add byte
-                    out_dict[beamInfoToCheck[byte][0][0]] = byte
-
-                    son_struct = beamInfoToCheck[byte][1:]
-
-                    elen = 0
-                    for v in son_struct:
-                        elen += np.dtype(v[-1]).itemsize
-
-                    buffer = file.read(elen)
-
-                    # Read the data
-                    header = np.frombuffer(buffer, dtype=np.dtype(son_struct))
-
-                    for name, typ in header.dtype.fields.items(): # type: ignore
-                        out_dict[name] = header[name][0].item()
-                    
-                    fidx += 1
-                    record_body_header_len += elen
+            if field_num == 0:
+                out_dict['channel_id_1'] = self._decode_varuint_bytes(raw)
+            elif field_num == 1:
+                out_dict['bottom_depth'] = self._decode_depth_varint(raw)
+            elif field_num == 2:
+                out_dict['drawn_bottom_depth'] = self._decode_depth_varint(raw)
+            elif field_num == 3:
+                out_dict['first_sample_depth'] = self._decode_depth_varint(raw)
+            elif field_num == 4:
+                out_dict['last_sample_depth'] = self._decode_depth_varint(raw)
+            elif field_num == 5 and len(raw) > 0:
+                out_dict['gain'] = int(raw[0])
+            elif field_num == 6:
+                out_dict['sample_status'] = self._decode_varuint_bytes(raw)
+            elif field_num == 7:
+                out_dict['sample_cnt'] = int.from_bytes(raw, 'little', signed=False)
+            elif field_num == 8 and len(raw) > 0:
+                out_dict['shade_avail'] = int(raw[0])
+            elif field_num == 9:
+                out_dict['scposn_lat'] = int.from_bytes(raw, 'little', signed=True)
+            elif field_num == 10:
+                out_dict['scposn_lon'] = int.from_bytes(raw, 'little', signed=True)
+            elif field_num == 11 and len(raw) == 4:
+                out_dict['water_temp'] = float(np.frombuffer(raw, dtype='<f4')[0])
+            elif field_num == 12:
+                out_dict['beam'] = self._decode_varuint_bytes(raw)
+            elif field_num == 13:
+                out_dict.update(self._parseBeamInfoPayload(raw))
+            elif field_num == 14:
+                out_dict['interrogation_id'] = self._decode_varuint_bytes(raw)
 
             
 
@@ -733,7 +860,8 @@ class gar(object):
 
         out_dict['index'] = i
 
-        out_dict['son_offset'] = (out_dict['data_size']) - (out_dict['sample_cnt']*2) + self.pingHeaderLen
+        sample_cnt = out_dict.get('sample_cnt', 0)
+        out_dict['son_offset'] = (out_dict['data_size']) - (sample_cnt*2) + self.pingHeaderLen
 
         # out_dict['son_offset'] = record_body_header_len+1
  
@@ -760,9 +888,10 @@ class gar(object):
         df['dist'] = ds
 
         # Calculate speed
-        s = np.where(t != 0, ds[1:] / t, np.nan)
+        s = np.full_like(t, np.nan, dtype='float64')
+        np.divide(ds[1:], t, out=s, where=t != 0)
         s = np.append(s[0], s)
-        s = pd.Series(s).fillna(method='ffill').fillna(method='bfill').to_numpy()
+        s = pd.Series(s).ffill().bfill().to_numpy()
 
 
         # Assume constant speed for nan's. Need to interpolate.
@@ -805,16 +934,22 @@ class gar(object):
                     break
             return result
 
-        # Convert varint values (Assume they are in thousandths of a unit)
+        # Garmin depth-like fields are stored in millimeters. Convert to meters.
         cols_to_convert = ['bottom_depth', 'drawn_bottom_depth', 'last_sample_depth']
         for col in cols_to_convert:
 
             if col in df.columns:
                 df[col] = df[col].apply(lambda x: decode_varint(x) if isinstance(x, bytes) else x)
+                # Garmin uses sentinel-style out-of-range values in some files.
+                df[col] = df[col].where((df[col] >= 0) & (df[col] < 0xFFFFFF00), np.nan)
                 df[col] = df[col].astype(float) / 1000.0
-                df[col] /= 3.2808399
 
-        df['first_sample_depth'] /= 3.2808399
+        if 'first_sample_depth' in df.columns:
+            df['first_sample_depth'] = df['first_sample_depth'].where(
+                (df['first_sample_depth'] >= 0) & (df['first_sample_depth'] < 0xFFFFFF00),
+                np.nan,
+            )
+            df['first_sample_depth'] = df['first_sample_depth'].astype(float) / 1000.0
 
 
 
@@ -1029,63 +1164,76 @@ class gar(object):
         # Get df
         df = self.header_dat
 
-        # Get all unique beam and port_star_id combinations
-        try:
-            dfBeams = df.drop_duplicates(subset=['channel_id', 'F'])
-        except:
-            dfBeams = df.drop_duplicates(subset=['channel_id'])
-            dfBeams['port_star_id'] = np.nan
+        # Prefer explicit in-record beam values and use port_star_id sign to disambiguate sidescan.
+        beam_name_by_id = {
+            1: 'ds_hifreq',
+            2: 'ss_port',
+            3: 'ss_star',
+            4: 'ds_vhifreq',
+        }
 
-        # # Find channel_id for nan port_star_id
-        # nanPortStar = dfBeams[dfBeams['port_star_id'].isna()]['channel_id'].unique()
+        chan_ids = sorted(df['channel_id'].dropna().unique())
 
-        # if len(nanPortStar) > 1:
-        #     beam_set[nanPortStar.min()] = ('ds_hifreq', 1) # Default beam
-        #     beam_set[nanPortStar.max()] = ('ds_vhifreq', 4) # Default beam
-        # else:
-        #     beam_set[nanPortStar[0]] = ('ds_hifreq', 1)
+        for chan_id in chan_ids:
+            g = df[df['channel_id'] == chan_id]
 
-        # try:
-        #     # Get channel_id from dfBeams for port is port_star_id==60
-        #     port_chan_id = dfBeams[dfBeams['port_star_id'] == 60]['channel_id'].iloc[0]
-        #     star_chan_id = dfBeams[dfBeams['port_star_id'] == -60]['channel_id'].iloc[0]
-        #     beam_set[port_chan_id] = ('ss_port', 2)
-        #     beam_set[star_chan_id] = ('ss_star', 3)
-        # except:
-        #     pass
+            beam_id = np.nan
+            if 'beam' in g.columns:
+                b = g['beam'].dropna()
+                b = b[b.isin([1, 2, 3, 4])]
+                if len(b) > 0:
+                    beam_id = int(b.mode().iloc[0])
 
-        # Nievely assign beams
-        # if there are four beams, assume:
-        ## min value is 2d
-        ## second is down image
-        ## third is port
-        ## max is star
-        print('\n\nBeams Available:')
-        print(dfBeams['channel_id'])
-        if len(dfBeams) == 4:
-            # min, port, star, di = sorted(dfBeams['channel_id'].unique())
-            min, di, port, star = sorted(dfBeams['channel_id'].unique())
-            beam_set[min] = ('ds_hifreq', 1)
-            beam_set[port] = ('ss_port', 2)
-            beam_set[star] = ('ss_star', 3)
-            beam_set[di] = ('ds_vhifreq', 4)
+            if np.isnan(beam_id) and isinstance(getattr(self, 'channel_info', None), list):
+                # Conservative fallback from channel header metadata when beam is not present.
+                match = [c for c in self.channel_info if c.get('channel_id', np.nan) == chan_id]
+                if len(match) == 1:
+                    cinfo = match[0]
+                    sf = cinfo.get('start_freq_hz', np.nan)
+                    ef = cinfo.get('end_freq_hz', np.nan)
+                    if np.isfinite(sf) and np.isfinite(ef):
+                        fkhz = (sf + ef) / 2000.0
+                        if fkhz >= 700:
+                            beam_id = 4
+                        elif fkhz >= 300:
+                            beam_id = 2
+                        else:
+                            beam_id = 1
 
-        # If 2 beams, assign to high freq and down image
-        elif len(dfBeams) == 2:
-            min, di = sorted(dfBeams['channel_id'].unique())
-            beam_set[min] = ('ds_hifreq', 1)
-            beam_set[di] = ('ds_vhifreq', 4)
-        
-        # If only 1 beam, assign to high freq
-        elif len(dfBeams) == 1:
-            beam_set[dfBeams['channel_id'][0]] = ('ds_hifreq', 1)
+            if np.isnan(beam_id):
+                beam_set[chan_id] = ('unknown', -1)
+            else:
+                beam_set[chan_id] = (beam_name_by_id.get(int(beam_id), 'unknown'), int(beam_id))
 
-        # Unknown return error
-        else:
-            print('\n\nERROR!')
-            print('Unknown beam ids:')
-            print(dfBeams['channel_id'].unique())
-            sys.exit()
+        # Use sign of port_star_id to force sidescan orientation when available.
+        if 'port_star_id' in df.columns:
+            for chan_id in chan_ids:
+                g = df[df['channel_id'] == chan_id]
+                ps = g['port_star_id'].dropna()
+                if len(ps) == 0:
+                    continue
+
+                ps_med = float(np.median(ps))
+                if ps_med < 0:
+                    beam_set[chan_id] = ('ss_port', 2)
+                elif ps_med > 0:
+                    beam_set[chan_id] = ('ss_star', 3)
+
+        # Final fallback if still unresolved.
+        unresolved = [k for k, v in beam_set.items() if v[1] == -1]
+        if len(unresolved) > 0:
+            ordered = sorted(chan_ids)
+            for idx, chan_id in enumerate(ordered):
+                if chan_id not in unresolved:
+                    continue
+                if idx == 0:
+                    beam_set[chan_id] = ('ds_hifreq', 1)
+                elif idx == 1:
+                    beam_set[chan_id] = ('ss_port', 2)
+                elif idx == 2:
+                    beam_set[chan_id] = ('ss_star', 3)
+                else:
+                    beam_set[chan_id] = ('ds_vhifreq', 4)
 
 
         # Iterate each beam
@@ -1097,6 +1245,7 @@ class gar(object):
             humBeam = 'B00'+str(humBeamint)
             meta['beamName'] = humBeamName
             meta['beam'] = humBeam
+            group = group.copy()
             group['beam'] = humBeamint
 
             # # Set pixM based on side scan

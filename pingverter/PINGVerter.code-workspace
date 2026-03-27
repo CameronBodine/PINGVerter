@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../klein_sdf_format"
+		},
+		{
+			"path": "../../PINGMapper"
+		},
+		{
+			"path": "C:/Users/cbodine/Downloads"
+		}
+	],
+	"settings": {
+		"powershell.cwd": "PINGVerter"
+	}
+}
