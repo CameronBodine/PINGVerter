@@ -934,7 +934,7 @@ class gar(object):
                     break
             return result
 
-        # Convert varint values (Assume they are in thousandths of a unit)
+        # Garmin depth-like fields are stored in millimeters. Convert to meters.
         cols_to_convert = ['bottom_depth', 'drawn_bottom_depth', 'last_sample_depth']
         for col in cols_to_convert:
 
@@ -943,14 +943,13 @@ class gar(object):
                 # Garmin uses sentinel-style out-of-range values in some files.
                 df[col] = df[col].where((df[col] >= 0) & (df[col] < 0xFFFFFF00), np.nan)
                 df[col] = df[col].astype(float) / 1000.0
-                df[col] /= 3.2808399
 
         if 'first_sample_depth' in df.columns:
             df['first_sample_depth'] = df['first_sample_depth'].where(
                 (df['first_sample_depth'] >= 0) & (df['first_sample_depth'] < 0xFFFFFF00),
                 np.nan,
             )
-            df['first_sample_depth'] /= 3.2808399
+            df['first_sample_depth'] = df['first_sample_depth'].astype(float) / 1000.0
 
 
 
