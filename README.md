@@ -127,6 +127,8 @@ Outputs from the above examples will be exported to `C:\Path\To\Outputs\MyProjec
 - [Cerulean Sonar](https://ceruleansonar.com/)
 - [Cerulean Sonar Docs](https://docs.ceruleansonar.com/c/cerulean-ping-protocol/universal-packet-format)
 - [Blue Robotics Ping Protocol](https://docs.bluerobotics.com/ping-protocol/pingmessage-omniscan450/)
+- [SidescanTools](https://github.com/sonoware/sidescantools)
+  - SidescanTools is an open-source software to read and process data from side-scan sonar instruments.
 
 - [Vincent Capone](https://blacklaserlearning.com/) - Black Laser Learning
 
