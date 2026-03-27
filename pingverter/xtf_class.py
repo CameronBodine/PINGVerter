@@ -207,10 +207,55 @@ class xtf(object):
         out.reset_index(drop=True, inplace=True)
         return out
 
+    def _invalid_geom_mask(self, df: pd.DataFrame):
+        pix = pd.to_numeric(df['pixM'], errors='coerce') if 'pixM' in df.columns else pd.Series(np.nan, index=df.index)
+        spp = pd.to_numeric(df['seconds_per_ping'], errors='coerce') if 'seconds_per_ping' in df.columns else pd.Series(np.nan, index=df.index)
+        ping = pd.to_numeric(df['ping_cnt'], errors='coerce') if 'ping_cnt' in df.columns else pd.Series(np.nan, index=df.index)
+
+        return (
+            pix.isna() |
+            (pix <= 1e-4) |
+            spp.isna() |
+            (spp <= 1e-6) |
+            ping.isna() |
+            (ping <= 0) |
+            (ping > 1_000_000)
+        )
+
+    def _repair_invalid_metadata_rows(self, df: pd.DataFrame):
+        if len(df) == 0:
+            return df
+
+        out = df.copy()
+        invalid = self._invalid_geom_mask(out)
+        if not invalid.any():
+            return out
+
+        key = 'ping_number' if 'ping_number' in out.columns else 'time_s'
+        out.sort_values(by=[key], inplace=True)
+        invalid = self._invalid_geom_mask(out)
+
+        repair_fields = ['pixM', 'seconds_per_ping', 'f', 'f_min', 'f_max', 'bytes_per_sample', 'ping_cnt']
+        for field in repair_fields:
+            if field not in out.columns:
+                continue
+
+            series = pd.to_numeric(out[field], errors='coerce')
+            series = series.where(~invalid, np.nan)
+            series = series.ffill().bfill()
+
+            if field in ['bytes_per_sample', 'ping_cnt']:
+                out[field] = np.round(series).astype(int)
+            else:
+                out[field] = series
+
+        out.reset_index(drop=True, inplace=True)
+        return out
+
     def _sync_port_star_metadata_group(self, df: pd.DataFrame):
         beams = set(df['beam'].dropna().astype(int).unique().tolist())
         if not ({2, 3}.issubset(beams)):
-            return df
+            return self._repair_invalid_metadata_rows(df)
 
         port = df[df['beam'] == 2].copy()
         star = df[df['beam'] == 3].copy()
@@ -223,12 +268,27 @@ class xtf(object):
         port_lookup = port.sort_values(by=[key]).drop_duplicates(subset=[key], keep='first').set_index(key)
         star_lookup = star.sort_values(by=[key]).drop_duplicates(subset=[key], keep='first').set_index(key)
 
-        star_needs_geom = (
-            star['pixM'].isna() |
-            (star['pixM'] <= 0) |
-            star['seconds_per_ping'].isna() |
-            (star['seconds_per_ping'] <= 1e-6)
+        star_needs_geom = self._invalid_geom_mask(star)
+        if 'channel_number' in star.columns:
+            star_chan = pd.to_numeric(star['channel_number'], errors='coerce')
+            star_needs_geom |= (~star_chan.isin([0, 1, 2, 3, 4, 5]))
+
+        src_ping_for_star = pd.to_numeric(star[key].map(port_lookup['ping_cnt']), errors='coerce')
+        dst_ping_star = pd.to_numeric(star['ping_cnt'], errors='coerce')
+        ping_mismatch_star = np.isfinite(src_ping_for_star) & np.isfinite(dst_ping_star) & (
+            (dst_ping_star > (src_ping_for_star * 2.0)) |
+            (dst_ping_star < (src_ping_for_star * 0.5))
         )
+
+        src_spp_for_star = pd.to_numeric(star[key].map(port_lookup['seconds_per_ping']), errors='coerce')
+        dst_spp_star = pd.to_numeric(star['seconds_per_ping'], errors='coerce')
+        spp_mismatch_star = np.isfinite(src_spp_for_star) & np.isfinite(dst_spp_star) & (
+            (dst_spp_star > max(5.0, np.nanmax(src_spp_for_star) * 5.0 if np.isfinite(np.nanmax(src_spp_for_star)) else 5.0)) |
+            (dst_spp_star > (src_spp_for_star * 5.0)) |
+            (dst_spp_star < (src_spp_for_star * 0.2))
+        )
+
+        star_needs_geom |= ping_mismatch_star | spp_mismatch_star
 
         for idx in star[star_needs_geom].index:
             k = star.loc[idx, key]
@@ -243,12 +303,27 @@ class xtf(object):
             if 'channel_number' in star.columns:
                 star.at[idx, 'channel_number'] = 1
 
-        port_needs_geom = (
-            port['pixM'].isna() |
-            (port['pixM'] <= 0) |
-            port['seconds_per_ping'].isna() |
-            (port['seconds_per_ping'] <= 1e-6)
+        port_needs_geom = self._invalid_geom_mask(port)
+        if 'channel_number' in port.columns:
+            port_chan = pd.to_numeric(port['channel_number'], errors='coerce')
+            port_needs_geom |= (~port_chan.isin([0, 1, 2, 3, 4, 5]))
+
+        src_ping_for_port = pd.to_numeric(port[key].map(star_lookup['ping_cnt']), errors='coerce')
+        dst_ping_port = pd.to_numeric(port['ping_cnt'], errors='coerce')
+        ping_mismatch_port = np.isfinite(src_ping_for_port) & np.isfinite(dst_ping_port) & (
+            (dst_ping_port > (src_ping_for_port * 2.0)) |
+            (dst_ping_port < (src_ping_for_port * 0.5))
         )
+
+        src_spp_for_port = pd.to_numeric(port[key].map(star_lookup['seconds_per_ping']), errors='coerce')
+        dst_spp_port = pd.to_numeric(port['seconds_per_ping'], errors='coerce')
+        spp_mismatch_port = np.isfinite(src_spp_for_port) & np.isfinite(dst_spp_port) & (
+            (dst_spp_port > max(5.0, np.nanmax(src_spp_for_port) * 5.0 if np.isfinite(np.nanmax(src_spp_for_port)) else 5.0)) |
+            (dst_spp_port > (src_spp_for_port * 5.0)) |
+            (dst_spp_port < (src_spp_for_port * 0.2))
+        )
+
+        port_needs_geom |= ping_mismatch_port | spp_mismatch_port
 
         for idx in port[port_needs_geom].index:
             k = port.loc[idx, key]
@@ -262,10 +337,29 @@ class xtf(object):
             if 'channel_number' in port.columns:
                 port.at[idx, 'channel_number'] = 0
 
+        port = self._repair_invalid_metadata_rows(port)
+        star = self._repair_invalid_metadata_rows(star)
+
         out = pd.concat([port, star], ignore_index=True)
         out.sort_values(by=['time_s', 'beam'], inplace=True)
         out.reset_index(drop=True, inplace=True)
         return out
+
+    def _normalize_channel_number(self, channel_number: int, chan_idx: int):
+        try:
+            channel_number = int(channel_number)
+        except Exception:
+            channel_number = -1
+
+        if channel_number in (0, 1, 2, 3, 4, 5):
+            return channel_number
+
+        # Some Klein files store corrupted/non-canonical channel IDs in packet
+        # channel headers while channel order (chan_idx) remains stable.
+        if 0 <= int(chan_idx) <= 5:
+            return int(chan_idx)
+
+        return None
 
     def _parse_sonar_record(self, record_start: int, header: bytes, num_chans_to_follow: int, record_bytes: int, file):
         year = struct.unpack_from('<H', header, 14)[0]
@@ -299,7 +393,12 @@ class xtf(object):
 
         lat, lon, e, n = self._decode_position(sensor_x, sensor_y, self.nav_units)
 
+        ref_ping_cnt = None
+
         for chan_idx in range(num_chans_to_follow):
+            if int(sample_offset) >= int(record_bytes):
+                break
+
             chan_off = self.ping_header_size + (chan_idx * self.ping_chan_header_size)
             file.seek(record_start + chan_off)
             chan_header = file.read(self.ping_chan_header_size)
@@ -312,39 +411,73 @@ class xtf(object):
             seconds_per_ping = struct.unpack_from('<f', chan_header, 20)[0]
             frequency = struct.unpack_from('<H', chan_header, 26)[0]
             num_samples = struct.unpack_from('<I', chan_header, 42)[0]
+            try:
+                num_samples = int(num_samples)
+            except Exception:
+                num_samples = 0
 
             chan_cfg = self.chaninfo.get(chan_idx, {})
             type_of_channel = chan_cfg.get('type_of_channel', None)
+            bytes_per_sample = max(int(chan_cfg.get('bytes_per_sample', 1)), 1)
+
+            remaining_payload_bytes = max(int(record_bytes) - int(sample_offset), 0)
+            max_samples = remaining_payload_bytes // bytes_per_sample
 
             if type_of_channel is not None and type_of_channel not in [1, 2]:
-                sample_offset += int(num_samples) * max(int(chan_cfg.get('bytes_per_sample', 1)), 1)
+                skip_samples = max(0, min(int(num_samples), int(max_samples)))
+                sample_offset += int(skip_samples) * int(bytes_per_sample)
                 continue
 
-            bytes_per_sample = int(chan_cfg.get('bytes_per_sample', 1))
+            channel_number = self._normalize_channel_number(channel_number, chan_idx)
+            if channel_number is None:
+                skip_samples = max(0, min(int(num_samples), int(max_samples)))
+                sample_offset += int(skip_samples) * int(bytes_per_sample)
+                continue
+
             chan_freq = float(chan_cfg.get('frequency', frequency)) if chan_cfg.get('frequency', frequency) is not None else np.nan
 
             beam = self._map_beam(channel_number, type_of_channel, chan_idx)
             freq_band = self._map_freq_band(channel_number, chan_idx)
 
-            pix_m = np.nan
-            if num_samples > 0 and slant_range > 0:
-                pix_m = slant_range / num_samples
-
-            max_payload_bytes = max(int(record_bytes) - int(sample_offset), 0)
-            max_samples = max_payload_bytes // max(bytes_per_sample, 1)
-
             ping_cnt = int(num_samples)
             if ping_cnt < 0:
                 ping_cnt = 0
-            if max_samples > 0 and ping_cnt > max_samples:
+            if max_samples <= 0:
+                ping_cnt = 0
+            elif ping_cnt > max_samples:
                 ping_cnt = int(max_samples)
 
+            if ref_ping_cnt is None and ping_cnt > 0:
+                ref_ping_cnt = int(ping_cnt)
+
+            if (
+                ref_ping_cnt is not None and
+                ref_ping_cnt > 0 and
+                (num_samples <= 0 or int(num_samples) > int(max_samples) or ping_cnt > (ref_ping_cnt * 2))
+            ):
+                ping_cnt = int(min(ref_ping_cnt, max_samples))
+
+            if ping_cnt <= 0:
+                continue
+
+            pix_m = np.nan
+            if slant_range > 0:
+                pix_m = slant_range / ping_cnt
+
+            sample_format = int(chan_cfg.get('sample_format', 0))
             if bytes_per_sample == 1:
                 self.son8bit = True
                 self.sample_dtype = '>u1'
             elif bytes_per_sample == 2:
                 self.son8bit = False
                 self.sample_dtype = '<u2'
+            elif bytes_per_sample == 4:
+                self.son8bit = False
+                # XTF sample format 5 is commonly float32 amplitudes (e.g., Klein).
+                if sample_format == 5:
+                    self.sample_dtype = '<f4'
+                else:
+                    self.sample_dtype = '<u4'
             else:
                 self.son8bit = False
                 self.sample_dtype = '<u2'
