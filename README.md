@@ -13,7 +13,6 @@ A Python-based convertor for sonar logs collected with consumer-grade fishfinder
 - [Cerulean](https://ceruleansonar.com/) (Omniscan 450 SS *.svlog)
 - [EdgeTech JSF](https://www.edgetech.com/) (*.jsf)
 - [XTF](https://www.exail.com/) (*.xtf)
-- [Klein SDF](https://www.kleinmarine.com/) (*.sdf)
 
 ## Installation
 
@@ -97,18 +96,6 @@ inFile = r'C:\Path\To\Recording\Line001.xtf'
 projDir = r'C:\Path\To\Outputs\MyProject'
 
 sonar_object = xtf2pingmapper(inFile, projDir)
-```
-
-### SDF
-```python
-# Import
-from pingverter import sdf2pingmapper
-
-# Parameters
-inFile = r'C:\Path\To\Recording\Line001.sdf'
-projDir = r'C:\Path\To\Outputs\MyProject'
-
-sonar_object = sdf2pingmapper(inFile, projDir)
 ```
 
 
