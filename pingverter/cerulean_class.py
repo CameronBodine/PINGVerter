@@ -114,6 +114,8 @@ class cerul(object):
         self.headBytes = 52
 
         self.humDat = {} # Store general sonar recording metadata
+        self.trans = None
+        self.has_position = False
 
         self.cerulCols2PM = cerulCols2PM
 
@@ -228,6 +230,10 @@ class cerul(object):
 
         while i < file_len:
 
+            # Stop if not enough bytes remain for a full packet header
+            if i + self.packet_header_size > file_len:
+                break
+
             # Get packet data at offset i
             header_dat, cpos = self._getPacketHeader(file, i)
 
@@ -313,6 +319,10 @@ class cerul(object):
 
         while i < file_len:
 
+            # Stop if not enough bytes remain for a full packet header
+            if i + self.packet_header_size > file_len:
+                break
+
             # Get packet data at offset i
             header_dat, cpos = self._getPacketHeader(file, i)
 
@@ -397,8 +407,25 @@ class cerul(object):
         # Do interpolation of position/imu information for each ping
         df = self._doPosInterp(df)
 
+        required_cols = ['ping_number']
+        missing_cols = [c for c in required_cols if c not in df.columns]
+        if missing_cols:
+            avail_cols = ', '.join(sorted(df.columns.to_list()))
+            miss_cols = ', '.join(missing_cols)
+            raise ValueError(
+                "Cerulean metadata is missing required ping fields ({}) and "
+                "cannot be converted for PING-Mapper. Available fields: {}".format(
+                    miss_cols, avail_cols
+                )
+            )
+
+        has_nav = all(c in df.columns for c in ['lat', 'lon'])
+        self.has_position = has_nav
+        if not has_nav:
+            print("\nWARNING: Cerulean metadata has no lat/lon fields. Continuing in sonar-only mode (non-georeferenced).")
+
         # Drop nan's
-        df = df.dropna(subset=['ping_number','lat', 'lon']).reset_index(drop=True)
+        df = df.dropna(subset=required_cols).reset_index(drop=True)
 
         # Do unit conversion
         df = self._doUnitConversion(df)
@@ -409,8 +436,11 @@ class cerul(object):
         # Drop non-sonar columns
         df = df[df['ping_cnt'].notna()]
 
-        # Calculate vessel speed
-        df = self._calcSpeedDist(df)
+        # Calculate vessel speed when valid position is available.
+        if has_nav:
+            df = self._calcSpeedDist(df)
+        else:
+            df = self._setSonarOnlyTrackMetrics(df)
 
         # # Caclculate cog
         # df = self._calcCOG(df)
@@ -470,6 +500,9 @@ class cerul(object):
 
         # Calculate speed (m/s)
 
+        if 'time_s' not in df.columns and 'timestamp_ms' in df.columns:
+            df['time_s'] = (df['timestamp_ms'] - df['timestamp_ms'].iloc[0]) / 1000
+
         # Convert time to timestamp
         df['caltime'] = pd.to_datetime(self.hardware_time_start + df['time_s'], unit='s')
         df['date'] = df['caltime'].dt.date
@@ -477,28 +510,51 @@ class cerul(object):
 
         df.drop(columns=['caltime'], inplace=True)
 
-        # Convert lat lon to decimal
-        df['lat'] = df['lat'] * 1e-7
-        df['lon'] = df['lon'] * 1e-7
+        has_nav = all(c in df.columns for c in ['lat', 'lon'])
 
-        # Determine epsg code 
-        self.humDat['epsg'] = "epsg:"+str(int(float(self._convert_wgs_to_utm(df['lon'][0], df['lat'][0]))))
-        self.humDat['wgs'] = "epsg:4326"
+        if has_nav:
+            # Convert lat lon to decimal
+            df['lat'] = df['lat'] * 1e-7
+            df['lon'] = df['lon'] * 1e-7
 
-        # Configure re-projection function
-        self.trans = pyproj.Proj(self.humDat['epsg'])
+            # Determine epsg code
+            self.humDat['epsg'] = "epsg:"+str(int(float(self._convert_wgs_to_utm(df['lon'][0], df['lat'][0]))))
+            self.humDat['wgs'] = "epsg:4326"
 
-        # Reproject lat/lon to UTM zone
-        e, n = self.trans(df['lon'], df['lat'])
-        df['e'] = e
-        df['n'] = n
+            # Configure re-projection function
+            self.trans = pyproj.Proj(self.humDat['epsg'])
 
-        # Convert heading
-        df['hdg'] = df['hdg'] * 1e-2
+            # Reproject lat/lon to UTM zone
+            e, n = self.trans(df['lon'], df['lat'])
+            df['e'] = e
+            df['n'] = n
+        else:
+            # Keep required fields present for downstream sonar-only workflows.
+            df['lat'] = np.nan
+            df['lon'] = np.nan
+            df['e'] = np.nan
+            df['n'] = np.nan
+            self.humDat['epsg'] = None
+            self.humDat['wgs'] = "epsg:4326"
+            self.trans = None
 
-        # Convert altitude (?)
-        df['alt'] = df['alt'] * 1e-3
-        df['relative_alt'] = df['relative_alt'] * 1e-3
+        # Normalize heading/altitude fields when available.
+        if 'hdg' in df.columns:
+            df['hdg'] = df['hdg'] * 1e-2
+        elif 'vehicle_heading_deg' in df.columns:
+            df['hdg'] = df['vehicle_heading_deg']
+        else:
+            df['hdg'] = np.nan
+
+        if 'alt' in df.columns:
+            df['alt'] = df['alt'] * 1e-3
+        else:
+            df['alt'] = np.nan
+
+        if 'relative_alt' in df.columns:
+            df['relative_alt'] = df['relative_alt'] * 1e-3
+        else:
+            df['relative_alt'] = np.nan
 
         # Store survey temperature
         df['tempC'] = self.tempC*10
@@ -518,6 +574,25 @@ class cerul(object):
 
         # Calculate offset to sonar
         df['son_offset'] = self.headBytes
+
+        # Keep instrument depth column available for downstream depth workflows.
+        df['inst_dep_m'] = np.nan
+
+        return df
+
+    # ======================================================================
+    def _setSonarOnlyTrackMetrics(self, df: pd.DataFrame):
+        '''
+        Fallback path when no navigation is available.
+        '''
+
+        df['speed_ms'] = 0.0
+        df['dist_m'] = 0.0
+        df['trk_dist'] = np.nan
+
+        for _, group in df.groupby(['channel_number']):
+            cnt = len(group)
+            df.loc[group.index, 'trk_dist'] = np.arange(cnt, dtype=float)
 
         return df
     
@@ -643,7 +718,29 @@ class cerul(object):
         '''
         df = self.header_dat
 
-        beam_xwalk = {self.port: 2, self.star: 3}
+        obs_channels = []
+        if 'channel_number' in df.columns:
+            obs_channels = [int(c) for c in pd.unique(df['channel_number'].dropna())]
+
+        beam_xwalk = {}
+
+        # Prefer explicit defaults when present in the recording.
+        if self.port in obs_channels:
+            beam_xwalk[self.port] = 2
+        if self.star in obs_channels and self.star != self.port:
+            beam_xwalk[self.star] = 3
+
+        # If defaults are not present, infer mapping from observed channels.
+        if len(beam_xwalk) == 0 and len(obs_channels) == 1:
+            beam_xwalk[obs_channels[0]] = 2
+        elif len(beam_xwalk) == 0 and len(obs_channels) >= 2:
+            obs_channels = sorted(obs_channels)
+            beam_xwalk[obs_channels[0]] = 2
+            beam_xwalk[obs_channels[1]] = 3
+        elif len(beam_xwalk) == 1 and len(obs_channels) > 1:
+            missing = [c for c in sorted(obs_channels) if c not in beam_xwalk]
+            if len(missing) > 0:
+                beam_xwalk[missing[0]] = 3 if 3 not in beam_xwalk.values() else 2
 
         df['beam'] = [beam_xwalk.get(i, "unknown") for i in df['channel_number']]
 
@@ -712,7 +809,7 @@ class cerul(object):
             meta['sonFile'] = self.sonFile
 
             # Drop columns
-            group.drop(columns=['frequency', 'component_id', 'sequence', 'system_id', 'type'], inplace=True)
+            group.drop(columns=['frequency', 'component_id', 'sequence', 'system_id', 'type'], inplace=True, errors='ignore')
 
             # Add chunk_id
             group = self._getChunkID(group)
