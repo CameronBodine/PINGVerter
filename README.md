@@ -49,6 +49,24 @@ projDir = r'C:\Path\To\Outputs\MyProject'
 sonar_object = low2pingmapper(inFile, projDir)
 ```
 
+Lowrance SL2/SL3 files can also be exported as synchronized raw sample projects
+for viewer applications, with optional per-beam waterfall PNG previews:
+
+```python
+from pingverter import low
+
+inFile = r'C:\Path\To\Recording\Log.sl3'
+outDir = r'C:\Path\To\Outputs\SonarProject'
+
+sonar_object = low(inFile, nchunk=500, exportUnknown=True)
+manifest = sonar_object.write_sonar_data_player_project(outDir, include_pngs=True)
+```
+
+The project writer creates `manifest.json`, `pings.csv`, `frames.jsonl`,
+`samples.u16le`, and one channel PNG per decoded Lowrance beam. Lowrance sample
+payloads are expanded to `uint16-le` for compatibility with viewers that share
+the Garmin project sample format.
+
 ### Garmin
 ```python
 # Import
@@ -75,7 +93,8 @@ manifest = sonar_object.write_sonar_data_player_project(outDir, include_pngs=Tru
 ```
 
 The project writer creates `manifest.json`, `pings.csv`, `frames.jsonl`,
-`samples.u16le`, and one channel PNG per decoded Garmin channel.
+`samples.u16le`, and one channel PNG per decoded Garmin channel. The same
+project format is consumed by SonarDataPlayer.
 
 You can also use the shared export API for any supported source format:
 
