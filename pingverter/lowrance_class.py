@@ -494,8 +494,15 @@ class low(object):
         df['track_cog'] = np.rad2deg(df['track_cog'])
         df['heading'] = np.rad2deg(df['heading'])
 
-        # Store survey temperature
-        df['tempC'] = self.tempC*10
+        # Prefer the per-ping Lowrance water temperature when present, and
+        # fall back to the caller-provided survey default only when needed.
+        if 'water_temperature' in df.columns:
+            df['tempC'] = pd.to_numeric(df['water_temperature'], errors='coerce')
+            df['tempC'] = df['tempC'].where((df['tempC'] > -5) & (df['tempC'] < 50))
+            df['tempC'] = df['tempC'].ffill().bfill()
+            df['tempC'] = df['tempC'].fillna(self.tempC*10)
+        else:
+            df['tempC'] = self.tempC*10
 
         # Add transect number (for aoi processing)
         df['transect'] = 0
