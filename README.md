@@ -61,6 +61,22 @@ projDir = r'C:\Path\To\Outputs\MyProject'
 sonar_object = gar2pingmapper(inFile, projDir)
 ```
 
+Garmin RSD files can also be exported as synchronized raw sample projects for
+viewer applications, with optional per-channel waterfall PNG previews:
+
+```python
+from pingverter import gar
+
+inFile = r'C:\Path\To\Recording\Log.RSD'
+outDir = r'C:\Path\To\Outputs\SonarProject'
+
+sonar_object = gar(inFile, nchunk=500, exportUnknown=True)
+manifest = sonar_object.write_sonar_data_player_project(outDir, include_pngs=True)
+```
+
+The project writer creates `manifest.json`, `pings.csv`, `frames.jsonl`,
+`samples.u16le`, and one channel PNG per decoded Garmin channel.
+
 
 ### Cerulean
 ```python
