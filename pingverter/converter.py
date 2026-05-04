@@ -919,6 +919,11 @@ def export_sonar_data_player_project(input: str, out_dir: str, include_pngs: boo
     ext = _detect_format(input, source_format=source_format)
     os.makedirs(out_dir, exist_ok=True)
 
+    if ext in ('.sl2', '.sl3'):
+        sonar_obj = low(inFile=input, nchunk=nchunk, exportUnknown=exportUnknown)
+        sonar_obj.tempC = float(tempC) / 10
+        return sonar_obj.write_sonar_data_player_project(out_dir, include_pngs=include_pngs)
+
     parser_work_dir = os.path.join(out_dir, 'meta')
     os.makedirs(parser_work_dir, exist_ok=True)
 
