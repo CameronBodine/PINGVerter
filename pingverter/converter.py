@@ -756,6 +756,27 @@ def _channel_metadata(group: pd.DataFrame, channel_id: int):
     }
 
 
+def _normalize_lss_channel_order(values: np.ndarray, row, ext: str):
+    """
+    Normalize Lowrance side-scan sample order to near->far for SonarDataPlayer.
+
+    Observed behavior for SL2/SL3 exports is that Port (beam/channel 2) can be
+    encoded as far->near while Starboard (beam/channel 3) is near->far.  This
+    creates upside-down-looking Port strips in stacked view and malformed
+    nadir-centred side-scan composition.  Normalize Port by reversing samples.
+    """
+    if ext not in ('.sl2', '.sl3'):
+        return values
+
+    beam = _safe_int(_row_value(row, ['beam', 'channel_id']), -1)
+    channel_id = _safe_int(_row_value(row, ['channel_id', 'beam']), -1)
+
+    if beam == 2 or channel_id == 2:
+        return values[::-1].copy()
+
+    return values
+
+
 def _write_generic_sonar_data_player_project(sonar_obj, input_path: str, out_dir: str, file_map: dict = None):
     if not hasattr(sonar_obj, 'header_dat') or sonar_obj.header_dat is None:
         raise ValueError("PINGverter parser did not produce header_dat.")
@@ -763,6 +784,8 @@ def _write_generic_sonar_data_player_project(sonar_obj, input_path: str, out_dir
     df = sonar_obj.header_dat.copy()
     if len(df) == 0:
         raise ValueError("No ping metadata rows were decoded.")
+
+    source_ext = os.path.splitext(input_path)[1].lower()
 
     if 'channel_id' not in df.columns:
         if 'beam' in df.columns:
@@ -827,6 +850,8 @@ def _write_generic_sonar_data_player_project(sonar_obj, input_path: str, out_dir
                     values = _decode_raw_to_u16(raw, bytes_per_sample, sonar_obj)
                     if values.size == 0:
                         continue
+
+                    values = _normalize_lss_channel_order(values, row, source_ext)
 
                     data = values.tobytes(order='C')
                     sample_file.write(data)
