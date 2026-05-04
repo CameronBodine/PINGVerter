@@ -45,6 +45,7 @@ import math
 import os, sys
 import numpy as np
 import pandas as pd
+from PIL import Image
 from datetime import datetime, timezone, timedelta
 from io import BytesIO
 
@@ -230,7 +231,7 @@ class gar(object):
 
     # ======================================================================
     def _decode_varuint_bytes(self, data: bytes):
-        if not data:
+        if len(data) == 0:
             return np.nan
         stream = BytesIO(data)
         try:
@@ -241,7 +242,7 @@ class gar(object):
     # ======================================================================
     def _decode_varint32_bytes(self, data: bytes):
         """Decode zig-zag encoded VarInt32 from bytes."""
-        if not data:
+        if len(data) == 0:
             return np.nan
         u = self._decode_varuint_bytes(data)
         if pd.isna(u):
@@ -683,7 +684,7 @@ class gar(object):
 
         # Calculate speed & track distance (based on coords and time)
         df = self._calcSpeedTrkDist(df)
-        self._recomputeTrackSpeedFromWgs(df)
+        df = self._recomputeTrackSpeedFromWgs(df)
 
         # Drop negative son_offset
         df = df[df['son_offset'] > 0]
@@ -1105,7 +1106,7 @@ class gar(object):
     def write_channel_waterfall_pngs(self, out_dir: str, df: pd.DataFrame=None,
                                      prefix: str=None, width: int=None):
         """Write one Garmin-style waterfall PNG per channel and return paths."""
-        from PIL import Image
+        
 
         os.makedirs(out_dir, exist_ok=True)
         samples_by_channel = self.extract_raw_sample_arrays(df)
