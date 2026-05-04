@@ -40,5 +40,5 @@ setup(
         "oceanography",
         "limnology",],
     python_requires=">=3.6",
-    install_requires=["numpy", "pandas", "pyproj", "joblib"],
+    install_requires=["numpy", "pandas", "pyproj", "joblib", "pillow"],
 )
