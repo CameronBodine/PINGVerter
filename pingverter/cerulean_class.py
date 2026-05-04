@@ -517,17 +517,36 @@ class cerul(object):
             df['lat'] = df['lat'] * 1e-7
             df['lon'] = df['lon'] * 1e-7
 
-            # Determine epsg code
-            self.humDat['epsg'] = "epsg:"+str(int(float(self._convert_wgs_to_utm(df['lon'][0], df['lat'][0]))))
-            self.humDat['wgs'] = "epsg:4326"
+            # Determine EPSG from the first finite coordinate pair.
+            valid_nav = (
+                np.isfinite(df['lat'])
+                & np.isfinite(df['lon'])
+                & (df['lat'] >= -90.0)
+                & (df['lat'] <= 90.0)
+                & (df['lon'] >= -180.0)
+                & (df['lon'] <= 180.0)
+            )
 
-            # Configure re-projection function
-            self.trans = pyproj.Proj(self.humDat['epsg'])
+            if valid_nav.any():
+                first_valid = valid_nav.idxmax()
+                epsg = self._convert_wgs_to_utm(df.at[first_valid, 'lon'], df.at[first_valid, 'lat'])
+                self.humDat['epsg'] = f"epsg:{epsg}"
+                self.humDat['wgs'] = "epsg:4326"
 
-            # Reproject lat/lon to UTM zone
-            e, n = self.trans(df['lon'], df['lat'])
-            df['e'] = e
-            df['n'] = n
+                # Configure re-projection function
+                self.trans = pyproj.Proj(self.humDat['epsg'])
+
+                # Reproject lat/lon to UTM zone
+                e, n = self.trans(df['lon'], df['lat'])
+                df['e'] = e
+                df['n'] = n
+            else:
+                # Navigation fields exist but contain no usable coordinates.
+                df['e'] = np.nan
+                df['n'] = np.nan
+                self.humDat['epsg'] = None
+                self.humDat['wgs'] = "epsg:4326"
+                self.trans = None
         else:
             # Keep required fields present for downstream sonar-only workflows.
             df['lat'] = np.nan
@@ -602,9 +621,13 @@ class cerul(object):
         This function estimates UTM zone from geographic coordinates
         see https://stackoverflow.com/questions/40132542/get-a-cartesian-projection-accurate-around-a-lat-lng-pair
         """
-        utm_band = str((np.floor((lon + 180) / 6 ) % 60) + 1)
-        if len(utm_band) == 1:
-            utm_band = '0'+utm_band
+        lon = float(lon)
+        lat = float(lat)
+        if not np.isfinite(lon) or not np.isfinite(lat):
+            raise ValueError("Latitude/longitude must be finite values.")
+
+        utm_zone = int((np.floor((lon + 180) / 6) % 60) + 1)
+        utm_band = f"{utm_zone:02d}"
         if lat >= 0:
             epsg_code = '326' + utm_band
         else:
