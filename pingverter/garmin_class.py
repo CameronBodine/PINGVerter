@@ -40,12 +40,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '''
 
+import json
+import math
 import os, sys
 import numpy as np
 import pandas as pd
+from PIL import Image
 from datetime import datetime, timezone, timedelta
-import pyproj
 from io import BytesIO
+
+try:
+    import pyproj
+except ImportError:  # Garmin RSD parsing and waterfall validation can run without projection support.
+    pyproj = None
 
 # Add 'pingmapper' to the path, may not need after pypi package...
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -224,13 +231,22 @@ class gar(object):
 
     # ======================================================================
     def _decode_varuint_bytes(self, data: bytes):
+        if len(data) == 0:
+            return np.nan
         stream = BytesIO(data)
-        return self._read_varuint(stream)
+        try:
+            return self._read_varuint(stream)
+        except (EOFError, ValueError):
+            return np.nan
 
     # ======================================================================
     def _decode_varint32_bytes(self, data: bytes):
         """Decode zig-zag encoded VarInt32 from bytes."""
+        if len(data) == 0:
+            return np.nan
         u = self._decode_varuint_bytes(data)
+        if pd.isna(u):
+            return np.nan
         return (u >> 1) ^ -(u & 1)
 
     # ======================================================================
@@ -243,6 +259,13 @@ class gar(object):
         """
         u = self._decode_varuint_bytes(data)
         z = self._decode_varint32_bytes(data)
+
+        if pd.isna(u):
+            if len(data) in (1, 2, 4):
+                le = int.from_bytes(data, 'little', signed=False)
+                if le < 0xFFFFFF00:
+                    return le
+            return np.nan
 
         candidates = [v for v in (u, z) if v >= 0]
         if not candidates:
@@ -270,19 +293,57 @@ class gar(object):
 
         try:
             field_cnt = self._read_varuint(stream)
-        except EOFError:
+        except (EOFError, ValueError):
             return fields
 
         for _ in range(field_cnt):
-            key = self._read_varuint(stream)
+            try:
+                key = self._read_varuint(stream)
+            except (EOFError, ValueError):
+                break
+
             field_num = key >> 3
             val_len = key & 0x07
 
             if val_len == 7:
-                val_len = self._read_varuint(stream)
+                try:
+                    val_len = self._read_varuint(stream)
+                except (EOFError, ValueError):
+                    break
 
             val = stream.read(val_len)
+            if len(val) < val_len:
+                break
+
             fields.append((field_num, val))
+
+        return fields
+
+    # ======================================================================
+    def _read_var_struct_fields(self, file_obj, max_end: int=None):
+        """Read a variable-structure from a file and return raw field values."""
+        fields = []
+        field_cnt = self._read_varuint(file_obj)
+
+        for _ in range(field_cnt):
+            if max_end is not None and file_obj.tell() >= max_end:
+                break
+
+            key = self._read_varuint(file_obj)
+            field_num = key >> 3
+            value_len = key & 0x07
+
+            if value_len == 7:
+                value_len = self._read_varuint(file_obj)
+
+            if max_end is not None and file_obj.tell() + value_len > max_end:
+                break
+
+            raw = file_obj.read(value_len)
+            if len(raw) < value_len:
+                raise EOFError('Unexpected EOF while reading variable structure field.')
+
+            fields.append((field_num, raw))
 
         return fields
 
@@ -294,18 +355,28 @@ class gar(object):
         with open(self.sonFile, 'rb') as file:
             file.seek(chan_info_offset)
 
-            key = self._read_varuint(file)
+            try:
+                key = self._read_varuint(file)
+            except (EOFError, ValueError):
+                return out
+
             if key != 55:  # field 6 with length marker 7 -> 6<<3 + 7
                 return out
 
-            payload_len = self._read_varuint(file)
+            try:
+                payload_len = self._read_varuint(file)
+            except (EOFError, ValueError):
+                return out
+
             payload = file.read(payload_len)
+            if len(payload) < payload_len:
+                return out
 
         stream = BytesIO(payload)
 
         try:
             chan_cnt = self._read_varuint(stream)
-        except EOFError:
+        except (EOFError, ValueError):
             return out
 
         for _ in range(chan_cnt):
@@ -323,24 +394,39 @@ class gar(object):
             # Parse directly from stream by reading element field count and fields.
             try:
                 elem_field_cnt = self._read_varuint(stream)
-            except EOFError:
+            except (EOFError, ValueError):
                 break
 
             for _ in range(elem_field_cnt):
-                fkey = self._read_varuint(stream)
+                try:
+                    fkey = self._read_varuint(stream)
+                except (EOFError, ValueError):
+                    break
+
                 fnum = fkey >> 3
                 flen = fkey & 0x07
                 if flen == 7:
-                    flen = self._read_varuint(stream)
+                    try:
+                        flen = self._read_varuint(stream)
+                    except (EOFError, ValueError):
+                        break
                 fval = stream.read(flen)
+                if len(fval) < flen:
+                    break
 
                 if fnum == 0:
                     # data_info: varray of DataInfo structure(s)
                     info_stream = BytesIO(fval)
-                    n = self._read_varuint(info_stream)
+                    try:
+                        n = self._read_varuint(info_stream)
+                    except (EOFError, ValueError):
+                        n = 0
                     if n > 0:
                         for _ in range(n):
-                            item_len = self._read_varuint(info_stream)
+                            try:
+                                item_len = self._read_varuint(info_stream)
+                            except (EOFError, ValueError):
+                                break
                             item = info_stream.read(item_len)
                             if item_len > 0:
                                 ch['channel_id'] = self._decode_varuint_bytes(item)
@@ -351,10 +437,16 @@ class gar(object):
                 elif fnum == 2:
                     # prop_chan_info: varray of DpsChannelInformation struct(s)
                     dps_stream = BytesIO(fval)
-                    dps_n = self._read_varuint(dps_stream)
+                    try:
+                        dps_n = self._read_varuint(dps_stream)
+                    except (EOFError, ValueError):
+                        dps_n = 0
 
                     for _ in range(dps_n):
-                        dps_len = self._read_varuint(dps_stream)
+                        try:
+                            dps_len = self._read_varuint(dps_stream)
+                        except (EOFError, ValueError):
+                            break
                         dps_payload = dps_stream.read(dps_len)
                         dps_fields = self._parse_var_struct_payload(dps_payload)
 
@@ -563,25 +655,26 @@ class gar(object):
         # Initialize offset after file header
         i = self.headBytes
 
-        # Open the file
-        file = open(self.sonFile, 'rb')
-
         # Store contents in list
         header_dat_all = []
 
         # Decode ping header
-        while i < file_len:
+        with open(self.sonFile, 'rb') as file:
+            while i < file_len:
 
-            # Get header data at offset i
-            header_dat, cpos = self._getPingHeader(file, i)
+                # Get header data at offset i
+                header_dat, cpos = self._getPingHeader(file, i)
 
-            if header_dat:
-                header_dat_all.append(header_dat)
+                if header_dat:
+                    header_dat_all.append(header_dat)
 
-            i = cpos
+                i = cpos
 
         # Convert to dataframe
         df = pd.DataFrame.from_dict(header_dat_all)
+        if len(df) == 0:
+            self.header_dat = df
+            return
 
         # Convert fields
         df = self._doUnitConversion(df)
@@ -591,6 +684,7 @@ class gar(object):
 
         # Calculate speed & track distance (based on coords and time)
         df = self._calcSpeedTrkDist(df)
+        df = self._recomputeTrackSpeedFromWgs(df)
 
         # Drop negative son_offset
         df = df[df['son_offset'] > 0]
@@ -770,29 +864,44 @@ class gar(object):
 
         # print('\n\n\n', i)
 
-        # Get necessary attributes
-        son_header_struct = self.son_header_struct
-        pingHeaderLen = self.pingHeaderLen
-
-        # head_struct = self.son_struct
-        # record_body_header_len = self.record_body_header_len
-
         # Move to offset
         file.seek(i)
 
-        # Get the ping header
-        buffer = file.read(pingHeaderLen)
-
-        # Read the data
-        header = np.frombuffer(buffer, dtype=np.dtype(son_header_struct))
+        try:
+            header_fields = self._read_var_struct_fields(file)
+        except (EOFError, ValueError):
+            return False, self.file_len
 
         out_dict = {}
-        for name, typ in header.dtype.fields.items():
-            out_dict[name] = header[name][0].item()
+        for field_num, raw in header_fields:
+            if field_num == 0 and len(raw) == 4:
+                out_dict['magic_number'] = int.from_bytes(raw, 'little', signed=False)
+            elif field_num == 1:
+                out_dict.update(self._parseStateDataPayload(raw))
+            elif field_num == 2 and len(raw) == 4:
+                out_dict['sequence_cnt'] = int.from_bytes(raw, 'little', signed=False)
+            elif field_num == 3 and len(raw) == 4:
+                out_dict['data_crc'] = int.from_bytes(raw, 'little', signed=False)
+            elif field_num == 4 and len(raw) == 2:
+                out_dict['data_size'] = int.from_bytes(raw, 'little', signed=False)
+            elif field_num == 5 and len(raw) == 4:
+                out_dict['recording_time_ms'] = int.from_bytes(raw, 'little', signed=False)
+
+        if out_dict.get('magic_number') != self.magicNum or 'data_size' not in out_dict:
+            return False, self._find_next_record(file, i + 1)
+
+        # Skip record header CRC.
+        header_crc = file.read(4)
+        if len(header_crc) < 4:
+            return False, self.file_len
+        out_dict['record_crc'] = int.from_bytes(header_crc, 'little', signed=False)
+        pingHeaderLen = file.tell() - i
+        out_dict['ping_header_len'] = pingHeaderLen
 
         # Check if there is a record body
-        if out_dict['state'] != 2: # no record bod
-            return False, i + self.pingHeaderLenFirst
+        if out_dict.get('state') != 2 or out_dict['data_size'] == 0: # no record body
+            next_ping = i + pingHeaderLen + 12
+            return False, self._align_next_record(file, next_ping)
         
         # # Get record body
         # # Get the ping header
@@ -808,19 +917,40 @@ class gar(object):
         # Must determine structure ping by ping
 
         # Decode variable record body by field key/length instead of fixed count assumptions.
-        rb_field_cnt = self._read_varuint(file)
+        try:
+            rb_field_cnt = self._read_varuint(file)
+        except (EOFError, ValueError):
+            return False, self.file_len
+
         out_dict['record_body_fcnt'] = rb_field_cnt
+        record_body_start = i + pingHeaderLen
+        record_body_end = record_body_start + out_dict['data_size']
 
         for _ in range(rb_field_cnt):
-            key = self._read_varuint(file)
+            if file.tell() >= record_body_end:
+                break
+
+            try:
+                key = self._read_varuint(file)
+            except (EOFError, ValueError):
+                break
+
             field_num = key >> 3
             value_len = key & 0x07
             if value_len == 7:
-                value_len = self._read_varuint(file)
+                try:
+                    value_len = self._read_varuint(file)
+                except (EOFError, ValueError):
+                    break
+
+            if value_len < 0 or file.tell() + value_len > record_body_end:
+                break
 
             raw = file.read(value_len)
+            if len(raw) < value_len:
+                break
 
-            if field_num == 0:
+            if field_num == 0 and len(raw) > 0:
                 out_dict['channel_id_1'] = self._decode_varuint_bytes(raw)
             elif field_num == 1:
                 out_dict['bottom_depth'] = self._decode_depth_varint(raw)
@@ -832,23 +962,23 @@ class gar(object):
                 out_dict['last_sample_depth'] = self._decode_depth_varint(raw)
             elif field_num == 5 and len(raw) > 0:
                 out_dict['gain'] = int(raw[0])
-            elif field_num == 6:
+            elif field_num == 6 and len(raw) > 0:
                 out_dict['sample_status'] = self._decode_varuint_bytes(raw)
-            elif field_num == 7:
+            elif field_num == 7 and len(raw) > 0:
                 out_dict['sample_cnt'] = int.from_bytes(raw, 'little', signed=False)
             elif field_num == 8 and len(raw) > 0:
                 out_dict['shade_avail'] = int(raw[0])
-            elif field_num == 9:
+            elif field_num == 9 and len(raw) > 0:
                 out_dict['scposn_lat'] = int.from_bytes(raw, 'little', signed=True)
-            elif field_num == 10:
+            elif field_num == 10 and len(raw) > 0:
                 out_dict['scposn_lon'] = int.from_bytes(raw, 'little', signed=True)
             elif field_num == 11 and len(raw) == 4:
                 out_dict['water_temp'] = float(np.frombuffer(raw, dtype='<f4')[0])
-            elif field_num == 12:
+            elif field_num == 12 and len(raw) > 0:
                 out_dict['beam'] = self._decode_varuint_bytes(raw)
             elif field_num == 13:
                 out_dict.update(self._parseBeamInfoPayload(raw))
-            elif field_num == 14:
+            elif field_num == 14 and len(raw) > 0:
                 out_dict['interrogation_id'] = self._decode_varuint_bytes(raw)
 
             
@@ -856,21 +986,450 @@ class gar(object):
 
         # Next ping header is from current position + ping_cnt
         # next_ping = file.tell() + out_dict['packet_size']
-        next_ping = i + pingHeaderLen + out_dict['data_size'] + 12 #12 for magic number & crc
+        next_ping = i + pingHeaderLen + out_dict['data_size'] + 12 #12 for trailer magic, chunk size & crc
 
         out_dict['index'] = i
 
         sample_cnt = out_dict.get('sample_cnt', 0)
-        out_dict['son_offset'] = (out_dict['data_size']) - (sample_cnt*2) + self.pingHeaderLen
+        if pd.isna(sample_cnt):
+            sample_cnt = 0
+        out_dict['son_offset'] = (out_dict['data_size']) - (sample_cnt*2) + pingHeaderLen
 
         # out_dict['son_offset'] = record_body_header_len+1
  
-        return out_dict, next_ping
+        return out_dict, self._align_next_record(file, next_ping)
+
+    # ======================================================================
+    def _parseStateDataPayload(self, payload: bytes):
+        out = {}
+        fields = self._parse_var_struct_payload(payload)
+
+        for field_num, raw in fields:
+            if field_num == 0 and len(raw) > 0:
+                out['state'] = self._decode_varuint_bytes(raw)
+            elif field_num == 1:
+                values = self._parse_varuint_varray(raw)
+                if values:
+                    out['channel_id'] = values[0]
+
+        return out
+
+    # ======================================================================
+    def _parse_varuint_varray(self, payload: bytes):
+        """Parse Garmin varray[VarUInt32] values."""
+        stream = BytesIO(payload)
+        values = []
+
+        try:
+            count = self._read_varuint(stream)
+            total_len = self._read_varuint(stream)
+        except (EOFError, ValueError):
+            return values
+
+        end_pos = min(len(payload), stream.tell() + total_len)
+        for _ in range(count):
+            if stream.tell() >= end_pos:
+                break
+            try:
+                values.append(self._read_varuint(stream))
+            except (EOFError, ValueError):
+                break
+
+        return values
+
+    # ======================================================================
+    def _find_next_record(self, file, start_pos: int):
+        magic = self.magicNum.to_bytes(4, 'little')
+        file.seek(start_pos)
+        data = file.read(max(0, self.file_len - start_pos))
+        pos = data.find(magic)
+        if pos < 0:
+            return self.file_len
+        return start_pos + pos - 2
+
+    # ======================================================================
+    def _align_next_record(self, file, expected_pos: int):
+        if expected_pos >= self.file_len:
+            return self.file_len
+
+        file.seek(expected_pos)
+        b = file.read(6)
+        if len(b) >= 6 and b[0] == 6 and int.from_bytes(b[2:6], 'little') == self.magicNum:
+            return expected_pos
+
+        return self._find_next_record(file, max(self.headBytes, expected_pos - 16))
+
+    # ======================================================================
+    def extract_raw_sample_arrays(self, df: pd.DataFrame=None):
+        """Return raw uint16 sonar samples per ping grouped by channel_id.
+
+        Each read uses the decoded record index, data_size, sample_cnt, and
+        son_offset fields. Pings with incomplete or inconsistent sample blocks
+        are skipped instead of raising.
+        """
+        if df is None:
+            df = self.header_dat
+
+        samples_by_channel = {}
+
+        with open(self.sonFile, 'rb') as file:
+            for _, row in df.iterrows():
+                try:
+                    channel_id = row['channel_id']
+                    index = int(row['index'])
+                    data_size = int(row['data_size'])
+                    sample_cnt = int(row['sample_cnt'] if 'sample_cnt' in row else row['ping_cnt'])
+                    son_offset = int(row['son_offset'])
+                    ping_header_len = int(row.get('ping_header_len', self.pingHeaderLen))
+                except (KeyError, TypeError, ValueError):
+                    continue
+
+                sample_bytes = sample_cnt * 2
+                if pd.isna(channel_id) or index < 0 or data_size <= 0 or sample_cnt <= 0:
+                    continue
+                if son_offset < ping_header_len:
+                    continue
+                if son_offset + sample_bytes > ping_header_len + data_size:
+                    continue
+
+                file.seek(index + son_offset)
+                raw = file.read(sample_bytes)
+                if len(raw) != sample_bytes:
+                    continue
+
+                arr = np.frombuffer(raw, dtype='<u2').copy()
+                samples_by_channel.setdefault(int(channel_id), []).append(arr)
+
+        return samples_by_channel
+
+    # ======================================================================
+    def write_channel_waterfall_pngs(self, out_dir: str, df: pd.DataFrame=None,
+                                     prefix: str=None, width: int=None):
+        """Write one Garmin-style waterfall PNG per channel and return paths."""
+        
+
+        os.makedirs(out_dir, exist_ok=True)
+        samples_by_channel = self.extract_raw_sample_arrays(df)
+        out_paths = {}
+
+        for channel_id, pings in samples_by_channel.items():
+            if not pings:
+                continue
+
+            max_len = width or max(len(p) for p in pings)
+            img_arr = np.zeros((len(pings), max_len), dtype=np.uint16)
+
+            for row_idx, ping in enumerate(pings):
+                n = min(len(ping), max_len)
+                img_arr[row_idx, :n] = ping[:n]
+
+            scaled = self._scale_samples_for_waterfall(img_arr)
+            image = Image.fromarray(scaled, mode='P')
+            image.putpalette(self._garmin_waterfall_palette())
+
+            stem = prefix or os.path.splitext(os.path.basename(self.sonFile))[0]
+            safe_stem = ''.join(c if c.isalnum() or c in ('-', '_') else '_' for c in stem)
+            out_path = os.path.join(out_dir, f'{safe_stem}_channel_{channel_id}.png')
+            image.save(out_path)
+            out_paths[channel_id] = out_path
+
+        return out_paths
+
+    # ======================================================================
+    def write_sonar_data_player_project(self, out_dir: str, include_pngs: bool=True,
+                                        prefix: str=None):
+        """Write a SonarDataPlayer processed project for this Garmin RSD file.
+
+        The project contains ping telemetry CSV, synchronized frame metadata,
+        a raw uint16 little-endian sample blob, and optional per-channel PNG
+        previews. The parser state is initialized automatically when needed.
+        """
+        os.makedirs(out_dir, exist_ok=True)
+        meta_dir = os.path.join(out_dir, 'meta')
+        channel_dir = os.path.join(out_dir, 'channels')
+        os.makedirs(meta_dir, exist_ok=True)
+        os.makedirs(channel_dir, exist_ok=True)
+
+        # Keep PINGverter's metadata side effect inside the project folder.
+        self.metaDir = meta_dir
+        self._ensure_garmin_metadata()
+
+        pings_csv = os.path.join(out_dir, 'pings.csv')
+        self.header_dat.to_csv(pings_csv, index=False)
+
+        samples_path = os.path.join(out_dir, 'samples.u16le')
+        frames_path = os.path.join(out_dir, 'frames.jsonl')
+        frame_count = self.write_sonar_data_player_frames(samples_path, frames_path)
+
+        waterfall_paths = {}
+        if include_pngs:
+            waterfall_paths = self.write_channel_waterfall_pngs(channel_dir, prefix=prefix)
+
+        channels = []
+        df = self.header_dat
+        channel_ids = sorted(int(c) for c in df['channel_id'].dropna().unique())
+        for channel_id in channel_ids:
+            group = df[df['channel_id'] == channel_id]
+            channel_info = self._channel_info_for_id(channel_id)
+            channel_desc = self.describe_channel(channel_id, group, channel_info)
+            sample_col = 'ping_cnt' if 'ping_cnt' in group.columns else 'sample_cnt'
+            max_samples = int(group[sample_col].max()) if len(group) and sample_col in group.columns else 0
+
+            channel = {
+                'channelId': channel_id,
+                'label': channel_desc['label'],
+                'mode': channel_desc['mode'],
+                'orientation': channel_desc['orientation'],
+                'beam': channel_desc['beam'],
+                'startFrequencyHz': channel_desc['startFrequencyHz'],
+                'endFrequencyHz': channel_desc['endFrequencyHz'],
+                'rows': int(len(group)),
+                'maxSamples': max_samples,
+                'timeStart': self._none_if_nan(group['time_s'].min()) if 'time_s' in group else None,
+                'timeEnd': self._none_if_nan(group['time_s'].max()) if 'time_s' in group else None,
+            }
+
+            if channel_id in waterfall_paths:
+                channel['waterfall'] = self._relpath(waterfall_paths[channel_id], out_dir)
+
+            channels.append(channel)
+
+        manifest = {
+            'formatVersion': 2,
+            'source': os.path.abspath(self.sonFile),
+            'telemetry': self._relpath(pings_csv, out_dir),
+            'frames': self._relpath(frames_path, out_dir),
+            'samples': {
+                'path': self._relpath(samples_path, out_dir),
+                'encoding': 'uint16-le',
+            },
+            'frameCount': frame_count,
+            'channels': channels,
+        }
+
+        manifest_path = os.path.join(out_dir, 'manifest.json')
+        with open(manifest_path, 'w', encoding='utf-8') as file:
+            json.dump(manifest, file, indent=2)
+
+        return manifest_path
+
+    # ======================================================================
+    def write_sonar_data_player_frames(self, samples_path: str, frames_path: str,
+                                       df: pd.DataFrame=None):
+        """Write synchronized frame metadata and raw uint16 sonar samples."""
+        if df is None:
+            df = self.header_dat
+
+        sample_col = 'ping_cnt' if 'ping_cnt' in df.columns else 'sample_cnt'
+        frame_count = 0
+        offset = 0
+
+        with open(self.sonFile, 'rb') as rsd, open(samples_path, 'wb') as samples, open(frames_path, 'w', encoding='utf-8') as frames:
+            for sequence_count, group in df.groupby('sequence_cnt', sort=True):
+                channels = []
+
+                for _, row in group.sort_values('channel_id').iterrows():
+                    try:
+                        sample_count = int(row[sample_col])
+                        byte_count = sample_count * 2
+                        data_size = int(row['data_size'])
+                        ping_header_len = int(row.get('ping_header_len', self.pingHeaderLen))
+                        son_offset = int(row['son_offset'])
+                        record_index = int(row['index'])
+                    except (KeyError, TypeError, ValueError):
+                        continue
+
+                    if sample_count <= 0:
+                        continue
+                    if son_offset < ping_header_len:
+                        continue
+                    if son_offset + byte_count > ping_header_len + data_size:
+                        continue
+
+                    rsd.seek(record_index + son_offset)
+                    raw = rsd.read(byte_count)
+                    if len(raw) != byte_count:
+                        continue
+
+                    samples.write(raw)
+                    channels.append({
+                        'channelId': int(row['channel_id']),
+                        'sampleOffset': offset,
+                        'sampleCount': sample_count,
+                        'byteLength': byte_count,
+                        'minRangeMeters': self._none_if_nan(row.get('min_range')),
+                        'maxRangeMeters': self._none_if_nan(row.get('max_range')),
+                        'bottomDepthMeters': self._none_if_nan(row.get('inst_dep_m')),
+                    })
+                    offset += byte_count
+
+                if not channels:
+                    continue
+
+                frame = {
+                    'frameIndex': frame_count,
+                    'sequenceCount': int(sequence_count),
+                    'timeSeconds': self._none_if_nan(group['time_s'].mean()) if 'time_s' in group else None,
+                    'lat': self._none_if_nan(group['lat'].mean()) if 'lat' in group else None,
+                    'lon': self._none_if_nan(group['lon'].mean()) if 'lon' in group else None,
+                    'speedMetersPerSecond': self._none_if_nan(group['speed_ms'].mean()) if 'speed_ms' in group else None,
+                    'trackDistanceMeters': self._none_if_nan(group['trk_dist'].mean()) if 'trk_dist' in group else None,
+                    'headingDegrees': self._none_if_nan(group['instr_heading'].mean()) if 'instr_heading' in group else None,
+                    'temperatureCelsius': self._none_if_nan(group['tempC'].mean()) if 'tempC' in group else None,
+                    'channels': channels,
+                }
+                frames.write(json.dumps(frame, separators=(',', ':')) + '\n')
+                frame_count += 1
+
+        return frame_count
+
+    # ======================================================================
+    def describe_channel(self, channel_id: int, group: pd.DataFrame=None,
+                         channel_info: dict=None):
+        """Return display metadata for a Garmin channel."""
+        if group is None:
+            group = self.header_dat[self.header_dat['channel_id'] == channel_id]
+        if channel_info is None:
+            channel_info = self._channel_info_for_id(channel_id)
+
+        beam = None
+        if group is not None and 'beam' in group.columns and len(group['beam'].dropna()) > 0:
+            beam = int(group['beam'].dropna().mode().iloc[0])
+
+        start_hz = int(channel_info.get('start_freq_hz', 0) or 0)
+        end_hz = int(channel_info.get('end_freq_hz', 0) or 0)
+
+        orientation = None
+        mode = 'Unknown'
+
+        if beam == 1:
+            mode = 'Traditional CHIRP'
+        elif beam == 4:
+            mode = 'Down Imaging'
+        elif beam in (2, 3):
+            mode = 'SideVu'
+            port_star = group['port_star_id'].median() if group is not None and 'port_star_id' in group else None
+            if port_star is not None and port_star < 0:
+                orientation = 'Port'
+            elif port_star is not None and port_star > 0:
+                orientation = 'Starboard'
+            elif beam == 2:
+                orientation = 'Port'
+            elif beam == 3:
+                orientation = 'Starboard'
+
+        freq = self._format_frequency_range(start_hz, end_hz)
+        label_parts = [mode]
+        if orientation:
+            label_parts.append(orientation)
+        if freq:
+            label_parts.append(freq)
+
+        return {
+            'label': ' '.join(label_parts) if label_parts else 'Channel {}'.format(channel_id),
+            'mode': mode,
+            'orientation': orientation,
+            'beam': beam,
+            'startFrequencyHz': start_hz or None,
+            'endFrequencyHz': end_hz or None,
+        }
+
+    # ======================================================================
+    def _ensure_garmin_metadata(self):
+        if not hasattr(self, 'file_len'):
+            self._getFileLen()
+        if not hasattr(self, 'file_header'):
+            self._parseFileHeader()
+        if not hasattr(self, 'header_dat'):
+            if not hasattr(self, 'metaDir'):
+                self.metaDir = os.path.dirname(os.path.abspath(self.sonFile))
+            self._parsePingHeader()
+            self._recalcRecordNum()
+
+    # ======================================================================
+    def _channel_info_for_id(self, channel_id: int):
+        for item in getattr(self, 'channel_info', []):
+            try:
+                if int(item.get('channel_id', -1)) == int(channel_id):
+                    return item
+            except (TypeError, ValueError):
+                continue
+        return {}
+
+    # ======================================================================
+    def _format_frequency_range(self, start_hz: int, end_hz: int):
+        if start_hz <= 0 or end_hz <= 0:
+            return None
+
+        return '{:.0f}-{:.0f} kHz'.format(start_hz / 1000, end_hz / 1000)
+
+    # ======================================================================
+    def _none_if_nan(self, value):
+        try:
+            f = float(value)
+        except (TypeError, ValueError):
+            return None
+        return None if math.isnan(f) else f
+
+    # ======================================================================
+    def _relpath(self, path: str, root: str):
+        return os.path.relpath(os.path.abspath(path), os.path.abspath(root)).replace(os.sep, '/')
+
+    # ======================================================================
+    def _scale_samples_for_waterfall(self, samples: np.ndarray):
+        """Compress raw uint16 sonar intensities to an 8-bit palette index."""
+        arr = samples.astype(np.float32)
+        positive = arr[arr > 0]
+        if positive.size == 0:
+            return np.zeros(arr.shape, dtype=np.uint8)
+
+        arr = np.log1p(arr)
+        positive = arr[samples > 0]
+        lo, hi = np.percentile(positive, [1, 99.5])
+        if hi <= lo:
+            hi = float(positive.max())
+            lo = float(positive.min())
+        if hi <= lo:
+            return np.zeros(arr.shape, dtype=np.uint8)
+
+        scaled = (arr - lo) * (255.0 / (hi - lo))
+        return np.clip(scaled, 0, 255).astype(np.uint8)
+
+    # ======================================================================
+    def _garmin_waterfall_palette(self):
+        """Approximate Garmin sonar colors as a 256-entry PIL palette."""
+        stops = [
+            (0, (0, 0, 0)),
+            (24, (0, 20, 72)),
+            (64, (0, 92, 160)),
+            (104, (0, 178, 196)),
+            (144, (30, 185, 70)),
+            (184, (230, 205, 45)),
+            (222, (230, 78, 30)),
+            (255, (255, 245, 210)),
+        ]
+        palette = []
+        for idx in range(256):
+            for stop_idx in range(len(stops) - 1):
+                a_idx, a_col = stops[stop_idx]
+                b_idx, b_col = stops[stop_idx + 1]
+                if a_idx <= idx <= b_idx:
+                    t = 0 if b_idx == a_idx else (idx - a_idx) / (b_idx - a_idx)
+                    col = tuple(int(round(a_col[c] + (b_col[c] - a_col[c]) * t)) for c in range(3))
+                    palette.extend(col)
+                    break
+        return palette
     
     
     ### Ping Header Conversions ###
     # ======================================================================
     def _calcSpeedTrkDist(self, df: pd.DataFrame, jump_thresh: float=1.0):
+
+        if len(df) <= 1:
+            df['dist'] = 0.0
+            df['speed_ms'] = 0.0
+            df['trk_dist'] = 0.0
+            return df
 
         x = df['e'].to_numpy()
         y = df['n'].to_numpy()
@@ -910,6 +1469,56 @@ class gar(object):
 
 
         return df
+
+    # ======================================================================
+    def _recomputeTrackSpeedFromWgs(self, df: pd.DataFrame):
+        """Recompute speed and cumulative track distance from WGS84 positions."""
+        required = {'sequence_cnt', 'time_s', 'lat', 'lon'}
+        if not required.issubset(df.columns) or len(df) == 0:
+            return df
+
+        frame_track = (
+            df.groupby('sequence_cnt', sort=True)
+            .agg(time_s=('time_s', 'mean'), lat=('lat', 'mean'), lon=('lon', 'mean'))
+            .reset_index()
+        )
+        if len(frame_track) == 0:
+            return df
+
+        distances = [0.0]
+        speeds = [np.nan]
+        cumulative = [0.0]
+
+        for idx in range(1, len(frame_track)):
+            prev = frame_track.iloc[idx - 1]
+            cur = frame_track.iloc[idx]
+            dist = self._haversineMeters(prev['lat'], prev['lon'], cur['lat'], cur['lon'])
+            dt = float(cur['time_s'] - prev['time_s'])
+
+            distances.append(dist)
+            speeds.append(dist / dt if dt > 0 else np.nan)
+            cumulative.append(cumulative[-1] + dist)
+
+        frame_track['dist'] = distances
+        frame_track['speed_ms'] = speeds
+        frame_track['trk_dist'] = cumulative
+        frame_track['speed_ms'] = frame_track['speed_ms'].interpolate().bfill().ffill().round(2)
+
+        replacements = frame_track.set_index('sequence_cnt')[['dist', 'speed_ms', 'trk_dist']]
+        for column in replacements.columns:
+            df[column] = df['sequence_cnt'].map(replacements[column])
+
+        return df
+
+    # ======================================================================
+    def _haversineMeters(self, lat1: float, lon1: float, lat2: float, lon2: float):
+        radius_m = 6371000.0
+        p1 = math.radians(float(lat1))
+        p2 = math.radians(float(lat2))
+        dp = math.radians(float(lat2) - float(lat1))
+        dl = math.radians(float(lon2) - float(lon1))
+        a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+        return 2 * radius_m * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     
     # ======================================================================
     def _doUnitConversion(self, df: pd.DataFrame):
@@ -1018,17 +1627,24 @@ class gar(object):
 
 
 
-        # Determine epsg code
-        self.humDat['epsg'] = "EPSG:"+str(int(float(self._convert_wgs_to_utm(df['lon'][0], df['lat'][0]))))
         self.humDat['wgs'] = "EPSG:4326"
 
-        # Configure re-projection function
-        self.trans = pyproj.Proj(self.humDat['epsg'])
+        if pyproj is not None and len(df) > 0:
+            # Determine epsg code
+            self.humDat['epsg'] = "EPSG:"+str(int(float(self._convert_wgs_to_utm(df['lon'].iloc[0], df['lat'].iloc[0]))))
 
-        # Reproject lat/lon to UTM zone
-        e, n = self.trans(df['lon'], df['lat'])
-        df['e'] = e
-        df['n'] = n
+            # Configure re-projection function
+            self.trans = pyproj.Proj(self.humDat['epsg'])
+
+            # Reproject lat/lon to UTM zone
+            e, n = self.trans(df['lon'], df['lat'])
+            df['e'] = e
+            df['n'] = n
+        else:
+            self.humDat['epsg'] = self.humDat['wgs']
+            self.trans = None
+            df['e'] = df['lon']
+            df['n'] = df['lat']
 
 
         #########################
@@ -1038,7 +1654,7 @@ class gar(object):
         # self._getBearing() returns n-1 values because last ping can't
         ## have a COG value.  We will duplicate the last COG value and use it for
         ## the last ping.
-        last = heading[-1]
+        last = heading[-1] if len(heading) > 0 else 0
         heading = np.append(heading, last)
         df['instr_heading'] = heading # Store COG in sDF
 
