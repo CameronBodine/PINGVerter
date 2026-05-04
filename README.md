@@ -77,6 +77,17 @@ manifest = sonar_object.write_sonar_data_player_project(outDir, include_pngs=Tru
 The project writer creates `manifest.json`, `pings.csv`, `frames.jsonl`,
 `samples.u16le`, and one channel PNG per decoded Garmin channel.
 
+You can also use the shared export API for any supported source format:
+
+```python
+from pingverter import export_sonar_data_player_project
+
+inFile = r'C:\Path\To\Recording\Line001.xtf'
+outDir = r'C:\Path\To\Outputs\SonarProject'
+
+manifest = export_sonar_data_player_project(inFile, outDir, include_pngs=True)
+```
+
 
 ### Cerulean
 ```python
