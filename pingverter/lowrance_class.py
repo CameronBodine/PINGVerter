@@ -41,10 +41,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '''
 
+import json
+import math
 import os
 import numpy as np
 import pandas as pd
-import pyproj
+
+try:
+    import pyproj
+except ImportError:
+    pyproj = None
 
 '''
 Based on Sonarlight by Kenneth Thorø Martinsen
@@ -465,24 +471,38 @@ class low(object):
         df['lat'] = (((2*np.arctan(np.exp(df['utm_n']/6356752.3142)))-(np.pi/2))*(180/np.pi))
         df['lon'] = (df['utm_e']/6356752.3142*(180/np.pi))
 
-        # Determine epsg code
-        self.humDat['epsg'] = "EPSG:"+str(int(float(self._convert_wgs_to_utm(df['lon'][0], df['lat'][0]))))
         self.humDat['wgs'] = "EPSG:4326"
 
-        # Configure re-projection function
-        self.trans = pyproj.Proj(self.humDat['epsg'])
+        if pyproj is not None and len(df) > 0:
+            # Determine epsg code
+            self.humDat['epsg'] = "EPSG:"+str(int(float(self._convert_wgs_to_utm(df['lon'].iloc[0], df['lat'].iloc[0]))))
 
-        # Reproject lat/lon to UTM zone
-        e, n = self.trans(df['lon'], df['lat'])
-        df['e'] = e
-        df['n'] = n
+            # Configure re-projection function
+            self.trans = pyproj.Proj(self.humDat['epsg'])
+
+            # Reproject lat/lon to UTM zone
+            e, n = self.trans(df['lon'], df['lat'])
+            df['e'] = e
+            df['n'] = n
+        else:
+            self.humDat['epsg'] = self.humDat['wgs']
+            self.trans = None
+            df['e'] = df['lon']
+            df['n'] = df['lat']
 
         # Convert radians to degrees
         df['track_cog'] = np.rad2deg(df['track_cog'])
         df['heading'] = np.rad2deg(df['heading'])
 
-        # Store survey temperature
-        df['tempC'] = self.tempC*10
+        # Prefer the per-ping Lowrance water temperature when present, and
+        # fall back to the caller-provided survey default only when needed.
+        if 'water_temperature' in df.columns:
+            df['tempC'] = pd.to_numeric(df['water_temperature'], errors='coerce')
+            df['tempC'] = df['tempC'].where((df['tempC'] > -5) & (df['tempC'] < 50))
+            df['tempC'] = df['tempC'].ffill().bfill()
+            df['tempC'] = df['tempC'].fillna(self.tempC*10)
+        else:
+            df['tempC'] = self.tempC*10
 
         # Add transect number (for aoi processing)
         df['transect'] = 0
@@ -575,8 +595,6 @@ class low(object):
         frequency_min = {200: 200, 50: 50, 83: 83, 455: 455, 800: 800, 38: 38,
                          28: 28, 170: 130, 120:90, 50: 40, 35: 25}
         
-        print(df['frequency'])
-        
         # df['f'] = [frequency_xwalk[i][0] for i in df['frequency']]
         df["f"] = [frequency_xwalk.get(i, -1) for i in df["frequency_type"]]
         
@@ -664,6 +682,327 @@ class low(object):
         self.header_dat = dfAll
 
         return
+
+    def extract_raw_sample_arrays(self, df: pd.DataFrame=None, expand_to_uint16: bool=False):
+        """Return raw Lowrance samples per ping grouped by beam.
+
+        Lowrance SL2/SL3 sample payloads are one byte per sounding. When
+        expand_to_uint16 is True, samples are scaled into the full uint16 range
+        for consumers that share Garmin's uint16 project format.
+        """
+        if df is None:
+            df = self.header_dat
+
+        samples_by_channel = {}
+
+        with open(self.sonFile, 'rb') as file:
+            for _, row in df.iterrows():
+                try:
+                    channel_id = int(row['beam'])
+                    record_index = int(row['index'])
+                    sample_count = int(row['ping_cnt'])
+                    son_offset = int(row['son_offset'])
+                    frame_size = int(row['frame_size'])
+                except (KeyError, TypeError, ValueError):
+                    continue
+
+                if sample_count <= 0 or son_offset < self.frame_header_size:
+                    continue
+                if son_offset + sample_count > frame_size:
+                    continue
+
+                file.seek(record_index + son_offset)
+                raw = file.read(sample_count)
+                if len(raw) != sample_count:
+                    continue
+
+                arr = np.frombuffer(raw, dtype=np.uint8)
+                if expand_to_uint16:
+                    arr = arr.astype('<u2') * 257
+                else:
+                    arr = arr.copy()
+
+                samples_by_channel.setdefault(channel_id, []).append(arr)
+
+        return samples_by_channel
+
+    def write_channel_waterfall_pngs(self, out_dir: str, df: pd.DataFrame=None,
+                                     prefix: str=None, width: int=None):
+        """Write one Lowrance waterfall PNG per beam and return paths."""
+        from PIL import Image
+
+        os.makedirs(out_dir, exist_ok=True)
+        samples_by_channel = self.extract_raw_sample_arrays(df)
+        out_paths = {}
+
+        for channel_id, pings in samples_by_channel.items():
+            if not pings:
+                continue
+
+            max_len = width or max(len(p) for p in pings)
+            img_arr = np.zeros((len(pings), max_len), dtype=np.uint8)
+
+            for row_idx, ping in enumerate(pings):
+                n = min(len(ping), max_len)
+                img_arr[row_idx, :n] = ping[:n]
+
+            image = Image.fromarray(img_arr, mode='P')
+            image.putpalette(self._lowrance_waterfall_palette())
+
+            stem = prefix or os.path.splitext(os.path.basename(self.sonFile))[0]
+            safe_stem = ''.join(c if c.isalnum() or c in ('-', '_') else '_' for c in stem)
+            out_path = os.path.join(out_dir, '{}_channel_{}.png'.format(safe_stem, channel_id))
+            image.save(out_path)
+            out_paths[channel_id] = out_path
+
+        return out_paths
+
+    def write_sonar_data_player_project(self, out_dir: str, include_pngs: bool=True,
+                                        include_unknown: bool=False, prefix: str=None):
+        """Write a SonarDataPlayer processed project for this Lowrance file."""
+        os.makedirs(out_dir, exist_ok=True)
+        meta_dir = os.path.join(out_dir, 'meta')
+        channel_dir = os.path.join(out_dir, 'channels')
+        os.makedirs(meta_dir, exist_ok=True)
+        os.makedirs(channel_dir, exist_ok=True)
+
+        self.metaDir = meta_dir
+        self._ensure_lowrance_metadata(include_unknown=include_unknown)
+
+        pings_csv = os.path.join(out_dir, 'pings.csv')
+        self.header_dat.to_csv(pings_csv, index=False)
+
+        samples_path = os.path.join(out_dir, 'samples.u16le')
+        frames_path = os.path.join(out_dir, 'frames.jsonl')
+        frame_count = self.write_sonar_data_player_frames(samples_path, frames_path)
+
+        waterfall_paths = {}
+        if include_pngs:
+            waterfall_paths = self.write_channel_waterfall_pngs(channel_dir, prefix=prefix)
+
+        channels = []
+        df = self.header_dat
+        channel_ids = sorted(int(c) for c in df['beam'].dropna().unique())
+        for channel_id in channel_ids:
+            group = df[df['beam'] == channel_id]
+            channel_desc = self.describe_channel(channel_id, group)
+            max_samples = int(group['ping_cnt'].max()) if len(group) else 0
+            channel = {
+                'channelId': channel_id,
+                'label': channel_desc['label'],
+                'mode': channel_desc['mode'],
+                'orientation': channel_desc['orientation'],
+                'beam': channel_id,
+                'startFrequencyHz': channel_desc['startFrequencyHz'],
+                'endFrequencyHz': channel_desc['endFrequencyHz'],
+                'rows': int(len(group)),
+                'maxSamples': max_samples,
+                'timeStart': self._none_if_nan(group['time_s'].min()) if 'time_s' in group else None,
+                'timeEnd': self._none_if_nan(group['time_s'].max()) if 'time_s' in group else None,
+            }
+            if channel_id in waterfall_paths:
+                channel['waterfall'] = self._relpath(waterfall_paths[channel_id], out_dir)
+            channels.append(channel)
+
+        manifest = {
+            'formatVersion': 2,
+            'source': os.path.abspath(self.sonFile),
+            'telemetry': self._relpath(pings_csv, out_dir),
+            'frames': self._relpath(frames_path, out_dir),
+            'samples': {
+                'path': self._relpath(samples_path, out_dir),
+                'encoding': 'uint16-le',
+                'sourceEncoding': 'uint8-expanded',
+            },
+            'frameCount': frame_count,
+            'channels': channels,
+        }
+
+        manifest_path = os.path.join(out_dir, 'manifest.json')
+        with open(manifest_path, 'w', encoding='utf-8') as file:
+            json.dump(manifest, file, indent=2)
+
+        return manifest_path
+
+    def write_sonar_data_player_frames(self, samples_path: str, frames_path: str,
+                                       df: pd.DataFrame=None):
+        """Write synchronized frame metadata and uint16-expanded Lowrance samples."""
+        if df is None:
+            df = self.header_dat
+
+        frame_count = 0
+        offset = 0
+
+        channel_groups = {
+            int(channel_id): group.sort_values('time_s').reset_index(drop=True)
+            for channel_id, group in df.groupby('beam', sort=True)
+        }
+        max_frames = max((len(group) for group in channel_groups.values()), default=0)
+
+        with open(self.sonFile, 'rb') as source, open(samples_path, 'wb') as samples, open(frames_path, 'w', encoding='utf-8') as frames:
+            for frame_idx in range(max_frames):
+                channels = []
+                rows = []
+
+                for channel_id, group in channel_groups.items():
+                    if frame_idx >= len(group):
+                        continue
+
+                    row = group.iloc[frame_idx]
+                    try:
+                        sample_count = int(row['ping_cnt'])
+                        frame_size = int(row['frame_size'])
+                        son_offset = int(row['son_offset'])
+                        record_index = int(row['index'])
+                    except (TypeError, ValueError):
+                        continue
+
+                    if sample_count <= 0:
+                        continue
+                    if son_offset < self.frame_header_size:
+                        continue
+                    if son_offset + sample_count > frame_size:
+                        continue
+
+                    source.seek(record_index + son_offset)
+                    raw = source.read(sample_count)
+                    if len(raw) != sample_count:
+                        continue
+
+                    expanded = (np.frombuffer(raw, dtype=np.uint8).astype('<u2') * 257).tobytes()
+                    byte_count = len(expanded)
+                    samples.write(expanded)
+
+                    channels.append({
+                        'channelId': channel_id,
+                        'sampleOffset': offset,
+                        'sampleCount': sample_count,
+                        'byteLength': byte_count,
+                        'minRangeMeters': self._none_if_nan(row.get('min_range')),
+                        'maxRangeMeters': self._none_if_nan(row.get('max_range')),
+                        'bottomDepthMeters': self._none_if_nan(row.get('inst_dep_m')),
+                    })
+                    offset += byte_count
+                    rows.append(row)
+
+                if not channels:
+                    continue
+
+                frame_df = pd.DataFrame(rows)
+                frame = {
+                    'frameIndex': frame_count,
+                    'sequenceCount': frame_idx,
+                    'timeSeconds': self._none_if_nan(frame_df['time_s'].mean()) if 'time_s' in frame_df else None,
+                    'lat': self._none_if_nan(frame_df['lat'].mean()) if 'lat' in frame_df else None,
+                    'lon': self._none_if_nan(frame_df['lon'].mean()) if 'lon' in frame_df else None,
+                    'speedMetersPerSecond': self._none_if_nan(frame_df['speed_ms'].mean()) if 'speed_ms' in frame_df else None,
+                    'trackDistanceMeters': self._none_if_nan(frame_df['trk_dist'].mean()) if 'trk_dist' in frame_df else None,
+                    'headingDegrees': self._none_if_nan(frame_df['instr_heading'].mean()) if 'instr_heading' in frame_df else None,
+                    'temperatureCelsius': self._none_if_nan(frame_df['tempC'].mean()) if 'tempC' in frame_df else None,
+                    'channels': channels,
+                }
+                frames.write(json.dumps(frame, separators=(',', ':')) + '\n')
+                frame_count += 1
+
+        return frame_count
+
+    def describe_channel(self, channel_id: int, group: pd.DataFrame=None):
+        """Return display metadata for a Lowrance beam."""
+        mode_by_beam = {
+            0: ('Primary', None),
+            1: ('Secondary', None),
+            2: ('SideScan', 'Port'),
+            3: ('SideScan', 'Starboard'),
+            4: ('DownScan', None),
+        }
+        mode, orientation = mode_by_beam.get(channel_id, ('Unknown', None))
+
+        frequency = None
+        if group is not None and 'frequency' in group and len(group['frequency'].dropna()) > 0:
+            frequency = str(group['frequency'].dropna().mode().iloc[0])
+
+        start_hz, end_hz = self._frequency_range_hz(frequency)
+        label_parts = [mode]
+        if orientation:
+            label_parts.append(orientation)
+        if frequency and frequency != 'unknown':
+            label_parts.append(frequency.replace('_', '-'))
+
+        return {
+            'label': ' '.join(label_parts),
+            'mode': mode,
+            'orientation': orientation,
+            'startFrequencyHz': start_hz,
+            'endFrequencyHz': end_hz,
+        }
+
+    def _ensure_lowrance_metadata(self, include_unknown: bool=False):
+        if not hasattr(self, 'tempC'):
+            self.tempC = 1.0
+        if not hasattr(self, 'file_len'):
+            self._getFileLen()
+        if not hasattr(self, 'file_header'):
+            self._parseFileHeader()
+        if not hasattr(self, 'header_dat'):
+            self._parsePingHeader()
+
+        if not include_unknown:
+            self._removeUnknownBeams()
+
+        if 5 in set(self.header_dat['beam'].dropna()):
+            self._splitLowSS()
+
+        self._recalcRecordNum()
+
+    def _frequency_range_hz(self, frequency: str):
+        if not frequency or frequency == 'unknown':
+            return None, None
+        text = frequency.replace('kHz', '')
+        if '_' in text:
+            parts = text.split('_')
+            try:
+                return int(float(parts[0]) * 1000), int(float(parts[-1]) * 1000)
+            except (TypeError, ValueError):
+                return None, None
+        try:
+            value = int(float(text) * 1000)
+            return value, value
+        except (TypeError, ValueError):
+            return None, None
+
+    def _lowrance_waterfall_palette(self):
+        """Approximate Lowrance/sonar display colors as a 256-entry PIL palette."""
+        stops = [
+            (0, (0, 0, 0)),
+            (32, (0, 30, 90)),
+            (72, (0, 105, 180)),
+            (116, (0, 190, 210)),
+            (156, (40, 190, 75)),
+            (196, (235, 210, 45)),
+            (226, (235, 88, 30)),
+            (255, (255, 248, 218)),
+        ]
+        palette = []
+        for idx in range(256):
+            for stop_idx in range(len(stops) - 1):
+                a_idx, a_col = stops[stop_idx]
+                b_idx, b_col = stops[stop_idx + 1]
+                if a_idx <= idx <= b_idx:
+                    t = 0 if b_idx == a_idx else (idx - a_idx) / (b_idx - a_idx)
+                    col = tuple(int(round(a_col[c] + (b_col[c] - a_col[c]) * t)) for c in range(3))
+                    palette.extend(col)
+                    break
+        return palette
+
+    def _none_if_nan(self, value):
+        try:
+            f = float(value)
+        except (TypeError, ValueError):
+            return None
+        return None if math.isnan(f) else f
+
+    def _relpath(self, path: str, root: str):
+        return os.path.relpath(os.path.abspath(path), os.path.abspath(root)).replace(os.sep, '/')
     
     def _recalcRecordNum(self):
 
