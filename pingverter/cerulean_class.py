@@ -53,6 +53,7 @@ import json
 import pandas as pd
 from datetime import datetime
 import pyproj
+import math
 
 # Structure is of Blue Robotis Ping Protocol: https://github.com/bluerobotics/ping-protocol
 # Documented at Cerulean: https://docs.ceruleansonar.com/c/cerulean-ping-protocol
@@ -125,6 +126,112 @@ class cerul(object):
         self.son8bit = False
 
         return
+
+    # ======================================================================
+    def _nmea_to_decimal(self, value: str, hemisphere: str, is_lat: bool):
+        """Convert NMEA ddmm.mmmm (lat) / dddmm.mmmm (lon) to decimal degrees."""
+        if value is None or value == "":
+            return np.nan
+
+        try:
+            raw = float(value)
+        except (TypeError, ValueError):
+            return np.nan
+
+        deg_div = 100.0
+        degrees = math.floor(raw / deg_div)
+        minutes = raw - (degrees * deg_div)
+        decimal = degrees + (minutes / 60.0)
+
+        hemisphere = (hemisphere or "").upper()
+        if hemisphere in ("S", "W"):
+            decimal = -decimal
+
+        if is_lat and not (-90.0 <= decimal <= 90.0):
+            return np.nan
+        if (not is_lat) and not (-180.0 <= decimal <= 180.0):
+            return np.nan
+
+        return float(decimal)
+
+    # ======================================================================
+    def _parse_nmea_sentence(self, sentence: str):
+        """Parse Cerulean packet_id=109 NMEA payloads into interpolation-ready fields."""
+        if sentence is None:
+            return None
+
+        s = sentence.strip()
+        if len(s) < 6 or not s.startswith('$'):
+            return None
+
+        body = s[1:].split('*', 1)[0]
+        parts = body.split(',')
+        if len(parts) == 0:
+            return None
+
+        message = parts[0].upper()
+        if len(message) < 5:
+            return None
+
+        msg_type = message[-3:]
+        out = {}
+
+        # GGA: time, lat, NS, lon, EW, quality, sats, hdop, alt, ...
+        if msg_type == 'GGA' and len(parts) >= 10:
+            lat = self._nmea_to_decimal(parts[2], parts[3], is_lat=True)
+            lon = self._nmea_to_decimal(parts[4], parts[5], is_lat=False)
+            if np.isfinite(lat) and np.isfinite(lon):
+                out['lat'] = lat * 1e7
+                out['lon'] = lon * 1e7
+
+            try:
+                out['alt'] = float(parts[9]) * 1000.0
+            except (TypeError, ValueError):
+                pass
+
+        # RMC: time, status, lat, NS, lon, EW, speed_knots, course_true, date, ...
+        elif msg_type == 'RMC' and len(parts) >= 10:
+            status = (parts[2] or '').upper()
+            if status == 'A':
+                lat = self._nmea_to_decimal(parts[3], parts[4], is_lat=True)
+                lon = self._nmea_to_decimal(parts[5], parts[6], is_lat=False)
+                if np.isfinite(lat) and np.isfinite(lon):
+                    out['lat'] = lat * 1e7
+                    out['lon'] = lon * 1e7
+
+            try:
+                out['hdg'] = float(parts[8]) * 100.0
+            except (TypeError, ValueError):
+                pass
+
+            try:
+                out['speed_ms'] = float(parts[7]) * 0.514444
+            except (TypeError, ValueError):
+                pass
+
+        # VTG: course_true, T, course_mag, M, speed_knots, N, speed_kmh, K, ...
+        elif msg_type == 'VTG' and len(parts) >= 8:
+            try:
+                out['hdg'] = float(parts[1]) * 100.0
+            except (TypeError, ValueError):
+                pass
+
+            try:
+                out['speed_ms'] = float(parts[5]) * 0.514444
+            except (TypeError, ValueError):
+                pass
+
+        # HDT: heading, T
+        elif msg_type == 'HDT' and len(parts) >= 2:
+            try:
+                out['hdg'] = float(parts[1]) * 100.0
+            except (TypeError, ValueError):
+                pass
+
+        if len(out) == 0:
+            return None
+
+        return out
     
     #===========================================================================
     def _getFileLen(self):
@@ -389,6 +496,23 @@ class cerul(object):
 
                     header_dat_all.append(packet_dat)
 
+            # NMEA packets (e.g. GGA/RMC/VTG/HDT) are packet_id 109 in some
+            # SonarView svlog recordings.
+            if header_dat['packet_id'] == 109:
+                file.seek(cpos)
+                payload = file.read(header_dat['packet_len'])
+                try:
+                    sentence = payload.decode('ascii', errors='ignore')
+                except Exception:
+                    sentence = ''
+
+                packet_dat = self._parse_nmea_sentence(sentence)
+                if packet_dat is not None:
+                    packet_dat['index'] = i
+                    # Keep nav rows aligned with sonar ordering for interpolation.
+                    packet_dat['time_s'] = np.nan
+                    header_dat_all.append(packet_dat)
+
             # if found_time:
             #     header_dat_all.append(packet_dat)
 
@@ -513,9 +637,17 @@ class cerul(object):
         has_nav = all(c in df.columns for c in ['lat', 'lon'])
 
         if has_nav:
-            # Convert lat lon to decimal
-            df['lat'] = df['lat'] * 1e-7
-            df['lon'] = df['lon'] * 1e-7
+            # Cerulean nav may be MAVLink degE7 or already decimal degrees.
+            lat_abs = np.nanmedian(np.abs(df['lat'].to_numpy(dtype='float64')))
+            lon_abs = np.nanmedian(np.abs(df['lon'].to_numpy(dtype='float64')))
+            use_deg_e7 = (
+                (np.isfinite(lat_abs) and lat_abs > 1000.0)
+                or (np.isfinite(lon_abs) and lon_abs > 1000.0)
+            )
+
+            if use_deg_e7:
+                df['lat'] = df['lat'] * 1e-7
+                df['lon'] = df['lon'] * 1e-7
 
             # Determine EPSG from the first finite coordinate pair.
             valid_nav = (
