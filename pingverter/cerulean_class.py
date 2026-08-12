@@ -615,6 +615,13 @@ class cerul(object):
             except:
                 pass
 
+        # Leading/trailing nav gaps are common in Cerulean logs.
+        # Backfill after interpolation so the first usable position can seed
+        # downstream distance calculations.
+        for f in ['lat', 'lon', 'hdg']:
+            if f in df.columns:
+                df[f] = df[f].ffill().bfill()
+
         return df
 
     # ======================================================================
