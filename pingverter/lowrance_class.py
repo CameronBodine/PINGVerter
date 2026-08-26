@@ -523,7 +523,7 @@ class low(object):
         This function estimates UTM zone from geographic coordinates
         see https://stackoverflow.com/questions/40132542/get-a-cartesian-projection-accurate-around-a-lat-lng-pair
         """
-        utm_band = str((np.floor((lon + 180) / 6 ) % 60) + 1)
+        utm_band = str(int(np.floor((lon + 180) / 6 ) % 60) + 1)
         if len(utm_band) == 1:
             utm_band = '0'+utm_band
         if lat >= 0:
